@@ -1,0 +1,33 @@
+# +-------------------------------------------------------------------+
+# | Package parameters                                                |
+# +-------------------------------------------------------------------+
+
+OASISFormat: 0.4
+OCamlVersion: >= 4.01
+Name: simplex
+Version: 0
+License: GPL
+Authors:
+  Yassine Hamoudi
+  Maxime Lesourd
+Homepage: https://github.com/nagaaym/Simplex
+BuildTools: ocamlbuild
+Plugins: DevFiles (0.3), META (0.3)
+
+AlphaFeatures: pure_interface
+
+Synopsis: Simplex
+Description:
+  Simplex,
+  Simplex;
+  Simplex.
+
+SourceRepository head
+  Type: git
+  Location: https://github.com/nagaaym/Simplex.git
+  Browser: https://github.com/nagaaym/Simplex
+
+Executable "toto"
+  Path: src
+  MainIs: toto.ml
+  CompiledObject: best
