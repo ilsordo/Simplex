@@ -5,19 +5,22 @@
 
 %%
 
-
-main:
-| formule EOF                 { $1 }
+  main:
+| program EOF                 { $1 }
   ;
 
-  formule:
-| INT INT liste_clause	      { ($1,$3) }
+  program:
+| MAX objective ST constraints BOUNDS bounds VARS variables	      { ($2,$4,$6,$8) }
+| MAX objective ST constraints BOUNDS bounds VARS variables	      { ($2,$4,$6,$8) }
   ;
 
-  liste_clause:
+  objective:
 | clause ENDC liste_clause    { $1::$3}
 |                             { [] }
   ;
+
+  constraints:
+| 
 
   clause:
 | literal clause             {$1::$2}
