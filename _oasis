@@ -14,7 +14,7 @@ Homepage: https://github.com/nagaaym/Simplex
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
 
-AlphaFeatures: pure_interface
+AlphaFeatures: pure_interface, ocamlbuild_more_args
 
 Synopsis: Simplex
 Description:
@@ -22,12 +22,15 @@ Description:
   Simplex;
   Simplex.
 
-SourceRepository head
+SourceRepository "master"
   Type: git
   Location: https://github.com/nagaaym/Simplex.git
   Browser: https://github.com/nagaaym/Simplex
 
-Executable "toto"
+Executable "simplex"
   Path: src
-  MainIs: toto.ml
+  MainIs: main.ml
   CompiledObject: best
+  BuildDepends: zarith
+  BuildTools+: ocamllex, menhir
+  XOCamlbuildExtraArgs: -j 0 -use-menhir

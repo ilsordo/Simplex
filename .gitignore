@@ -1,4 +1,6 @@
 _build/
 *.native
+*.byte
+
 setup.log
 setup.data
