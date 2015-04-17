@@ -1,8 +1,10 @@
-type var = Real of string | Slack of int | Expand
+type 'a var = Simple of int
+            | Unbounded of int*int
+            | Shifted of int*'a
 
-type varmap = { vars : var array
-              ; ids : (var, int) Hashtbl.t
-              }
+type 'a varmap = { vars : var array
+                 ; ids : (var, int) Hashtbl.t
+                 }
 
 let make ~(expand=false) names =
   let ids =

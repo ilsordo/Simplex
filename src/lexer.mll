@@ -4,6 +4,10 @@ open Tokens
 
 let whitespace = [' ' '\t' '\n' '\r']
 let var_name = ['a'-'z' 'A'-'Z']['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let int = ['0'-'9']+
+let float = ['0'-'9']*'.'int
+let rat = int'/'int
+let num = '-'?(int|float|rat)
 
 rule token = parse
 | whitespace           { token lexbuf }
@@ -24,7 +28,7 @@ rule token = parse
 | "BOUNDS"             { BOUNDS }
 | "VARIABLES"          { VARS }
 
-| ['0'-'9']* as s    	 { NUM (int_of_string s) }
+| num as s    	       { NUM s }
 | var_name as s        { VAR s }
 
 | eof                  { EOF }

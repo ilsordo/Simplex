@@ -1,17 +1,17 @@
 %parameter<Field : FIELD>
 
 %start main
-%type <int*(((bool*int) list) list)> main
+%type <Field.t Lp.t> main
 
 %%
 
   main:
-| program EOF                 { $1 }
+| program EOF                 { program }
   ;
 
   program:
-| MAX objective ST constraints BOUNDS bounds VARS variables	      { ($2,$4,$6,$8) }
-| MAX objective ST constraints BOUNDS bounds VARS variables	      { ($2,$4,$6,$8) }
+| MAX objective ST constraints BOUNDS bounds VARS variables
+  {  }
   ;
 
   objective:
@@ -20,7 +20,7 @@
   ;
 
   constraints:
-| 
+|
 
   clause:
 | literal clause             {$1::$2}
