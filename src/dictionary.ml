@@ -1,16 +1,14 @@
-(* A dictionary is rep*)
+type var = int
 
 type 'a row =
-  { mutable head : int
+  { mutable head : var
   ; body : 'a array
   ; mutable const : 'a
   }
 
 type 'a t =
-  { vars : int array (* vars.(i) is the id of the variable in column i*)
+  { vars : var array (* vars.(i) is the id of the variable in column i*)
   ; rows : 'a row array
   ; coeffs : 'a array
   ; mutable value : int
   }
-
-let make

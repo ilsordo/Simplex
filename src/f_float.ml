@@ -12,5 +12,7 @@ let ( - )  = ( -. )
 let ( * )  = ( *. )
 let ( / )  = ( /. )
 
+let neg x = -. x
+let inv x = 1. /. x
 
 let compare = compare
