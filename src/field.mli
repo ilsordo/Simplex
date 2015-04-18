@@ -3,6 +3,7 @@ module type FIELD = sig
 
   val of_string : string -> t option
   val of_int : int -> t
+  val to_string : t -> string
   val print : out_channel -> t -> unit
 
   val zero : t

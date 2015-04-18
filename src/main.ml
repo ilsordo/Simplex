@@ -1,4 +1,7 @@
 open Field
+open Lp
+
+type action = Print
 
 type config =
   { mutable input : in_channel
@@ -48,10 +51,11 @@ let main =
   let config = parse_args fields in
   let (module F : FIELD) = config.field in
   let lex = Lexing.from_channel config.input in
-  let module FParser = Parser.Make(F) in
+  let module F_parser = Parser.Make(F) in
+  let module F_lp = Lp.Process(F) in
   try
-    let lp = FParser.main Lexer.token lex in
-    Lp.print (module F : FIELD with type t = F.t) stdout lp
+    let lp = F_parser.main Lexer.token lex in
+    F_lp.print stdout lp
   with
   | Failure s ->
     let lexeme = Lexing.lexeme lex in

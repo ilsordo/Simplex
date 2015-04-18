@@ -1,7 +1,7 @@
-%parameter<Field : Field.FIELD>
+%parameter<F : Field.FIELD>
 
 %{
-open Field
+open F
 open Tokens
 
 let add_const x (vars, const) = (vars, const + x)
@@ -42,7 +42,7 @@ let set_bound var bound =
 %}
 
 %start main
-%type <Field.t Lp.t> main program
+%type <F.t Lp.t> main program
 %%
 
 main:
@@ -103,5 +103,5 @@ variables:
 ;
 
 num:
-  NUM                          { match Field.of_string $1 with
+  NUM                          { match F.of_string $1 with
         Some x -> x | None -> raise (Failure( "Unable to parse number : "^$1))}

@@ -2,6 +2,7 @@ type t = Q.t
 
 let of_string s = try Some (Q.of_string s) with Invalid_argument _ -> None
 let of_int = Q.of_int
+let to_string = Q.to_string
 let print = Q.output
 
 let zero = Q.zero
