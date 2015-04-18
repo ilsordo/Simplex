@@ -617,18 +617,20 @@ let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 (* OASIS_STOP *)
 
 let parserFlags =
-  S (List.map (fun x -> A x) ["--external-tokens";
-              "Tokens";
-              "--base";
-              "Parser";
-              "src/tokens.mly"]);;
+  S (List.map (fun x -> A x) [
+      "--explain";
+      "--external-tokens";
+      "Tokens";
+      "--base";
+      "src/parser";
+      "src/tokens.mly"]);;
 
 let my_dispatch e =
   dispatch_default e;
   match e with
   | After_rules ->
-    flag ["ocaml"; "menhir_ocamldep"; "only_tokens"] (A"--only-tokens");
-    flag ["ocaml"; "parser"; "menhir"; "only_tokens" ] (A"--only-tokens");
+    flag ["ocaml"; "menhir_ocamldep"; "file:src/tokens.mly"] (A"--only-tokens");
+    flag ["ocaml"; "parser"; "menhir"; "file:src/tokens.mly" ] (A"--only-tokens");
     flag ["ocaml"; "menhir_ocamldep"; "file:src/parser.mly"] parserFlags;
     flag ["ocaml"; "parser"; "menhir"; "file:src/parser.mly" ] parserFlags;
   | _ -> ();;

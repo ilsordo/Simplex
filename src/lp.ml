@@ -47,15 +47,15 @@ let print (type a) field chan {objective; constraints; bounds} =
         | _ ->
           print_lc_aux chan vars;
           if F.(compare const zero) < 0 then
-            fprintf chan "- %a" F.print (F.neg const)
+            fprintf chan " - %a" F.print (F.neg const)
           else
-            fprintf chan "+ %a" F.print const in
+            fprintf chan " + %a" F.print const in
   let rec print_constraints chan = function
     | [] -> ()
     | lc::t ->
       fprintf chan "%a >= 0\n" print_lc lc;
       print_constraints chan t in
-  fprintf chan "Maximize\n%a\nSubject to:\n%a\n%a\n%!"
+  fprintf chan "Maximize\n%a\n\nSubject to:\n%a\n%a\n%!"
     print_lc objective
     print_constraints constraints
     print_bounds bounds

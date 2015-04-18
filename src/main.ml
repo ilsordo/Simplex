@@ -48,10 +48,14 @@ let main =
   let config = parse_args fields in
   let (module F : FIELD) = config.field in
   let lex = Lexing.from_channel config.input in
+  let module FParser = Parser.Make(F) in
   try
-    let (module FParser) = Parser.Make F in
     let lp = FParser.main Lexer.token lex in
-    LP.print lp
+    Lp.print (module F : FIELD with type t = F.t) stdout lp
   with
-    _ -> Printf.eprintf "Input error\n%!";
-    exit 1
+  | Failure s ->
+    let lexeme = Lexing.lexeme lex in
+    let pos = Lexing.lexeme_start_p lex in
+    Printf.eprintf "Input error: (line %d) %s\n%s\n%!" pos.Lexing.pos_lnum lexeme s; exit 1
+  |  _ ->
+    Printf.eprintf "Input error\n%!"; exit 1

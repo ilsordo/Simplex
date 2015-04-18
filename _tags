@@ -21,4 +21,3 @@ true: annot, bin_annot
 <src/*.ml{,i,y}>: package(zarith)
 # OASIS_STOP
 true: use_menhir
-<src/tokens.mly>: only_tokens

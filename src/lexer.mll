@@ -2,7 +2,7 @@
 open Tokens
 }
 
-let whitespace = [' ' '\t' '\n' '\r']
+let whitespace = [' ' '\t' '\r']
 let var_name = ['a'-'z' 'A'-'Z']['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let int = ['0'-'9']+
 let float = ['0'-'9']*'.'int
@@ -10,6 +10,7 @@ let rat = (int)'/'int
 let num = '-'?(int|float|rat)
 
 rule token = parse
+| '\n'                 { Lexing.new_line lexbuf; token lexbuf }
 | whitespace           { token lexbuf }
 | "//"                 { comment lexbuf }
 
@@ -32,5 +33,5 @@ rule token = parse
 | eof                  { EOF }
 
 and comment = parse
-  | "\n"     { token lexbuf }
+  | '\n'                 { Lexing.new_line lexbuf; token lexbuf }
   | _        { comment lexbuf }

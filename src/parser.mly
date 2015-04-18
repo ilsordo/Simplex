@@ -6,7 +6,7 @@ open Tokens
 
 let add_const x (vars, const) = (vars, const + x)
 
-let add_var x v (vars, const) = ((v,x)::vars, const)
+let add_var v x (vars, const) = ((v,x)::vars, const)
 
 let rec neg_lc_aux acc = function
   | [] -> acc
@@ -23,7 +23,7 @@ and min a b = if compare a b > 0 then b else a
 let join b1 b2 =
   let open Lp in
   match (b1, b2) with
-  | (Unconstrained, _) | (_, Unconstrained) -> Unconstrained
+  | (Unconstrained, c) | (c, Unconstrained) -> c
   | (Inf a, Sup b) -> Both (a, b)
   | (Sup a, Inf b) -> Both (b, a)
   | (Inf a, Inf b) -> Inf (max a b)
@@ -42,12 +42,11 @@ let set_bound var bound =
 %}
 
 %start main
-%type <Field.t Lp.t> main
-
+%type <Field.t Lp.t> main program
 %%
 
 main:
-  | program EOF                 { $1 }
+  | program EOF                { $1 }
 ;
 
 program:
@@ -55,44 +54,54 @@ program:
     { Lp.{ objective = $2; constraints = $4; bounds = bounds } }
   | MIN lc ST constraints BOUNDS bounds VARS variables
     { Lp.{ objective = neg_lc $2; constraints = $4; bounds = bounds } }
+  | error                      { raise (Failure "program") }
 ;
 
 constraints:
-  | lc GEQ NUM                 { add_const (neg $3) $1 }
-  | lc GEQ MINUS NUM           { add_const $3 $1 }
-  | lc LEQ NUM                 { add_const $3 (neg_lc $1) }
-  | lc LEQ MINUS NUM           { add_const (neg $3) (neg_lc $1) }
+  |                              { [] }
+  | constraints lc GEQ num       { (add_const (neg $4) $2)::$1 }
+  | constraints lc GEQ MINUS num { (add_const $5 $2)::$1 }
+  | constraints lc LEQ num       { (add_const $4 (neg_lc $2))::$1 }
+  | constraints lc LEQ MINUS num { (add_const (neg $5) (neg_lc $2))::$1 }
+  | constraints lc EQ num        { (add_const (neg $4) $2)::(add_const $4 (neg_lc $2))::$1}
+  | constraints lc EQ MINUS num  { (add_const $5 $2)::(add_const (neg $5) (neg_lc $2))::$1}
+  | error                        { raise (Failure "constraints") }
 ;
 
 bounds:
   |                            { Hashtbl.clear bounds }
-  | bounds VAR EQ NUM          { set_bound $2 (Both ($4, $4))}
-  | bounds NUM LEQ VAR         { set_bound $4 (Inf $2)}
-  | bounds VAR LEQ NUM         { set_bound $2 (Inf $4)}
-  | bounds NUM GEQ VAR         { set_bound $4 (Sup $2)}
-  | bounds VAR GEQ NUM         { set_bound $2 (Sup $4)}
-  | bounds NUM LEQ VAR LEQ NUM { set_bound $4 (Both ($2, $6))}
-  | bounds NUM GEQ VAR GEQ NUM { set_bound $4 (Both ($6, $2))}
+  | bounds VAR EQ num          { set_bound $2 (Lp.Both ($4, $4))}
+  | bounds num LEQ VAR         { set_bound $4 (Lp.Inf $2)}
+  | bounds VAR LEQ num         { set_bound $2 (Lp.Sup $4)}
+  | bounds num GEQ VAR         { set_bound $4 (Lp.Sup $2)}
+  | bounds VAR GEQ num         { set_bound $2 (Lp.Inf $4)}
+  | bounds num LEQ VAR LEQ num { set_bound $4 (Lp.Both ($2, $6))}
+  | bounds num GEQ VAR GEQ num { set_bound $4 (Lp.Both ($6, $2))}
+  | error                      { raise (Failure "bounds") }
+;
 
 lc:
   | VAR                        { ([$1, one], zero) }
-  | NUM                        { ([], $1) }
-  | NUM VAR                    { ([$1, $2], zero) }
-  | MINUS VAR                  { ([$1, neg one], zero) }
-  | MINUS NUM                  { ([], neg $1) }
-  | MINUS NUM VAR              { ([$1, neg $2], zero) }
+  | num                        { ([], $1) }
+  | num VAR                    { ([$2, $1], zero) }
+  | MINUS VAR                  { ([$2, neg one], zero) }
+  | MINUS num                  { ([], neg $2) }
+  | MINUS num VAR              { ([$3, neg $2], zero) }
   | lc PLUS VAR                { add_var $3 one $1 }
-  | lc PLUS NUM                { add_const $3 $1 }
-  | lc PLUS NUM VAR            { add_var $4 $3 $1 }
+  | lc PLUS num                { add_const $3 $1 }
+  | lc PLUS num VAR            { add_var $4 $3 $1 }
   | lc MINUS VAR               { add_var $3 (neg one) $1 }
-  | lc MINUS NUM               { add_const (neg $3) $1 }
-  | lc MINUS NUM VAR           { add_var $4 (neg $3) $1 }
+  | lc MINUS num               { add_const (neg $3) $1 }
+  | lc MINUS num VAR           { add_var $4 (neg $3) $1 }
+  | lc error                   { raise (Failure "lc") }
 ;
 
 variables:
   |                            { () }
-  | variables VAR              { set_bound $2 Unconstrained }
+  | variables VAR              { set_bound $2 Lp.Unconstrained }
+  | error                      { raise (Failure "variables") }
 ;
 
 num:
-  NUM                          { match F.of_string $1 with Some x -> x | None -> raise Failure ("Unable "}
+  NUM                          { match Field.of_string $1 with
+        Some x -> x | None -> raise (Failure( "Unable to parse number : "^$1))}
