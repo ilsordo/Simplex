@@ -33,5 +33,5 @@ rule token = parse
 | eof                  { EOF }
 
 and comment = parse
-  | '\n'                 { Lexing.new_line lexbuf; token lexbuf }
-  | _        { comment lexbuf }
+  | '\n'               { Lexing.new_line lexbuf; token lexbuf }
+  | _                  { comment lexbuf }
