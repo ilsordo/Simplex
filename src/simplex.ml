@@ -182,8 +182,8 @@ let project_non_basic coeffs_init vars_init aux_var dict = (* project the dictio
 let project coeffs_init vars_init aux_var dict = (* End of first phase: project the dictionary according to aux_var *)
   let position =
     match array_find dict.rows (fun r -> r.head == aux_var) with
-      | Some n -> n
-      | None -> assert false in
+      | Some n -> n (* auxiliary variable is basic *) (* possible ? *)
+      | None -> -1 in (* auxiliary variable is non basic *)
   if position <> -1 then
     project_basic coeffs_init vars_init aux_var dict
   else
