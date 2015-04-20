@@ -93,7 +93,7 @@ let update_rows ent lea dict = (* row lea has been updated according to ent, upd
     (fun n r ->
       if n <> lea then
         update r;
-      n+1){
+      n+1)
     0 dict.rows in ()
 
 let update_coeffs ent lea dict = (* row lea has been updated according to ent. update coeffs *) (** manque le coeff constant *) (** cette fonction est la précédante se simplifient si coeffs est une rows *)
@@ -139,8 +139,8 @@ let rec pivots dict = (* Pivots the dictionnary until being blocked *)
 
 let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
   let aux_dic = 
-    { vars = Array.append dict.var {aux_var}
-    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) {neg F.one}
+    { vars = Array.append dict.var [|aux_var|]
+    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
     ; rows = dict.rows
     } in
   array_update aux_dic.rows aux_dic.rows (fun n x -> Array.append x [|F.one|]) None in
@@ -182,8 +182,8 @@ let project_non_basic coeffs_init vars_init aux_var dict = (* project the dictio
 let project coeffs_init vars_init aux_var dict = (* End of first phase: project the dictionary according to aux_var *)
   let position =
     match array_find dict.rows (fun r -> r.head == aux_var) with
-      | Some n -> n
-      | None -> assert false in
+      | Some n -> n (* auxiliary variable is basic *) (* possible ? *)
+      | None -> -1 in (* auxiliary variable is non basic *)
   if position <> -1 then
     project_basic coeffs_init vars_init aux_var dict
   else
