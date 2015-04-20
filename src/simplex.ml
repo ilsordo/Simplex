@@ -31,7 +31,7 @@ let array_find arr f = (* Some n if arr.[n] is the first elt of arr that verifie
     None
   with Found n -> Some n
 
-let array_doublemap arr1 arr2 ?(except = -1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
+let array_doublemap arr1 arr2 ?(except = -1) f = (* arr1.(n) <- f arr1.(n) arr2.(n), except for n *)
   assert (Array.length arr1 == Array.length arr2);
   let _ =
     Array.fold_left
@@ -69,7 +69,7 @@ let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving var
     Array.fold_left
       (fun (pos,pos_temp,num,denum) r ->
          let (num_r,denum_r) = (r.const,r.body.(ent)) in
-         if Field.(compare (num_r*denum_r) Field.zero) < 0 && Field.(compare (num_r*denum) (denum_r*num)) >= 0 then (** marche aussi pour 1st phase ?*)
+         if Field.(compare (num_r * denum_r) Field.zero) < 0 && Field.(compare (num_r * denum) (denum_r * num)) >= 0 then (** marche aussi pour 1st phase ?*)
            (pos+1,pos,num_r,denum_r)
          else
            (pos+1,pos_temp,num,denum))
@@ -81,9 +81,9 @@ let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving var
 
 let update_row ent lea r dict = (* row lea has been updated according to ent. now, update row r *)
   let coeff = r.body.(ent) in
-      r.body.(ent) <- Field.zero;
-      array_doublemap r.body dict.rows.(lea).body (fun c1 c2 -> c1 + (coeff*c2));
-      r.const <- r.const + coeff*dict.rows.(lea).const
+    r.body.(ent) <- Field.zero;
+    array_doublemap r.body dict.rows.(lea).body (fun c1 c2 -> c1 + (coeff * c2));
+    r.const <- r.const + (coeff * dict.rows.(lea).const)
 
 let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
   array_doublemap dict.rows dict.rows ~except:lea (fun r _ -> update_row ent lea r dict);
@@ -147,7 +147,7 @@ let rec project_var v coeff places coeffs_init vars_init dict =
       | Basic pos ->
           dict.coeffs.const <- coeffs_init.const;
           let _ = Array.fold_left
-            (fun n var -> project_var var dict.rows.(pos).(n)*coeff places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
+            (fun n var -> project_var var (dict.rows.(pos).(n)*coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
 
 let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
   let places = save_place heads_init vars_init in
@@ -171,14 +171,20 @@ let first_phase dict = (* Simplex when first phase needed *)
   let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
   let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
   let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-  match pivots dict with (* apply first phase's pivots *)
-    | Opt dict | Unbounded (dict,ent) ->
-        let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-        if Field.compare(dict.coeffs.const Field.zero) < 0 then
-          Empty dict_proj
-        else
-          pivots dict_proj
-    | _ -> assert false
+  match choose_leaving (Array.length dict.vars - 1) dict with (** ok ?*)
+    | None -> assert false
+    | Some lea ->
+        begin
+          pivot ent lea dict; (* illegal pivot *)
+          match pivots dict with
+            | Opt dict | Unbounded (dict,ent) ->
+                let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+                if Field.compare(dict.coeffs.const Field.zero) < 0 then
+                  Empty dict_proj
+                else
+                  pivots dict_proj
+            | _ -> assert false
+        end
 
 (************* Final function ****************)
 
