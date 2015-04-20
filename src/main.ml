@@ -53,9 +53,14 @@ let main =
   let lex = Lexing.from_channel config.input in
   let module F_parser = Parser.Make(F) in
   let module F_lp = Lp.Process(F) in
+  let module F_dic = Dictionary.Make(F) in
   try
     let lp = F_parser.main Lexer.token lex in
-    F_lp.print stdout lp
+    let (conv, dic) = F_dic.make lp in
+    Printf.printf "Problem:\n%a\nConversion:\n%a\nDictionary:\n%a"
+      F_lp.print lp
+      F_dic.print_conv conv
+      F_dic.print dic
   with
   | Failure s ->
     let lexeme = Lexing.lexeme lex in
