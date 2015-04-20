@@ -1,9 +1,9 @@
 open Field
 open Dictionary
 
-
 module Make(Field:FIELD) = struct
-  type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictionary.t
+
+type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictionary.t
 
 (************* Global functions ****************)
 
@@ -31,13 +31,13 @@ let array_find arr f = (* Some n if arr.[n] is the first elt of arr that verifie
     None
   with Found n -> Some n
 
-let array_update arr1 arr2 ?exc:(pos=-1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
+let array_doublemap arr1 arr2 ?exc:(pos=-1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
   assert Array.length arr1 == Array.length arr2;
   let _ =
     Array.fold_left
       (fun n x ->
         if n <> pos then
-          arr1.(n) <- f n arr1.(n) x
+          arr1.(n) <- f arr1.(n) x
       )
       0 arr2 in
   ()
@@ -81,11 +81,11 @@ let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving var
 let update_row ent lea r dict = (* row lea has been updated according to ent. now, update row r *)
   let coeff = r.body.(ent) in
       r.body.(ent) <- F.zero;
-      array_update r.body dict.rows.(lea).body (fun _ c1 c2 -> c1 + coeff*c2 );
+      array_doublemap r.body dict.rows.(lea).body (fun  c1 c2 -> c1 + coeff*c2 );
       r.const <- r.const + coeff*dict.rows.(lea).const
 
 let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
-  array_update dict.rows dict.rows ~exc:lea (fun _ r _ -> update_row ent lea r dict);
+  array_doublemap dict.rows dict.rows ~exc:lea (fun r _ -> update_row ent lea r dict);
   update_row ent lea dict.coeffs dict
 
 let pivot ent lea dict = (* Pivot colum ent and row lea *)
@@ -95,7 +95,7 @@ let pivot ent lea dict = (* Pivot colum ent and row lea *)
       dict.vars.(ent) <- dict.heads.(lea);
       dict.heads.(lea) <- ent_var;
       piv_row.body.(ent) <- neg F.one;
-      array_update piv_row piv_row (fun _ x _ -> x / (neg coeff));
+      array_doublemap piv_row piv_row (fun x _ -> x / (neg coeff));
       update_dict ent lea dict (* update the other rows + the objective *)
 
 let rec pivots dict = (* Pivots the dictionnary until being blocked *)
@@ -119,17 +119,8 @@ let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary vari
     ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
     ; rows = dict.rows
     } in
-  array_update aux_dic.rows aux_dic.rows (fun n r _ -> Array.append r [|F.one|]);
+  array_doublemap aux_dic.rows aux_dic.rows (fun r _ -> Array.append r [|F.one|]);
   aux_dic
-
-let project_basic position dict = (* project the dictionary when the auxiliary variable is basic *) (** possible ? *)
-  { vars = dict.vars
-  ; heads = partial_copy dict.heads position
-  ; coeffs = dict.coeffs
-  ; rows = partial_copy dict.rows position
-  }
-
-(** >>>>>>>>>>>>> *)
 
 type place = Basic of int | Non_basic of int
 
@@ -148,38 +139,30 @@ let save_place heads_init vars_init =
     (0,save_basic)
     vars_init    
 
-let project_non_basic coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *) (** <------ *)
+let rec project_var v coeff places coeffs_init vars_init dict =
+  if coeff <> 0 then
+    match find v places with
+      | Non_basic pos -> dict.coeffs.body.(pos) <- coeff
+      | Basic pos ->
+          dict.coeffs.const <- coeffs_init.const;
+          let _ = Array.fold_left
+            (fun n var -> project_var var dict.rows.(pos).(n)*coeff places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
+
+let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
+  let places = save_place heads_init vars_init in
   let pivot_pos = (* position of aux_var in dict.vars *)
     match array_find dict.vars (fun x -> x == aux_var) with
       | Some n -> n
-      | None -> assert false in
-  let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
-  array_update new_rows dict.rows (fun n _ r -> partial_copy r pivot_pos) in
-  let aux_var_coeff = dict.coeffs.(pivot_pos) in (* coefficient of the auxiliary variable in the objective function *)
-  let new_coeffs = (** ne devrait contenir que des 0*) (** on suppose que coeffs est une row *)
-    { head = dict.coeff.head
-    ; body = partial_copy dict.coeffs pivot_pos
-    ; const = dict.const
-    } in
-  let _ = Array.fold_left
-    (fun n v ->
-      match (***) with
-        | Some m -> add_rows new_coeffs dict.rows.(m) coeffs_init.(n) ; n+1
-        | None -> (***) (** les dictionaires initiaux/actuels ne sont pas dans le même ordre *)
-    )
-    0 vars_init
-
-  proj_dict =
+      | None -> assert false in (** forcèment 0 - x0 ? *)
+  let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs - 1) 0 } in
+  let proj_dict =
     { vars = partial_copy dict.vars pivot_pos
+    ; heads = dict.heads
     ; coeffs = new_coeffs
-    ; rows = new_rows
-    }
-(** <<<<<<<<<<<<< *)
-
-let project coeffs_init vars_init aux_var dict = (* End of first phase: project the dictionary according to aux_var *)
-  match array_find dict.heads (fun x -> x == aux_var) with
-    | Some n -> project_non_basic n dict (* auxiliary variable non is basic *) (* possible ? *)
-    | None -> project_basic coeffs_init vars_init aux_var dict in (* auxiliary variable is basic *)
+    ; rows = array_doublemap (Array.make (Array.length dict.rows) dict.rows.(0)) dict.rows (fun _ r -> partial_copy r pivot_pos)
+    } in
+    let _ = Array.fold_left
+      (fun n v -> project_var v coeffs_init.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in ()
 
 let first_phase dict = (* Simplex when first phase needed *)
   let coeffs_init = Array.copy dict.coeffs in (* save the coeffs for later (projection of first phase) *)
