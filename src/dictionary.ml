@@ -5,14 +5,14 @@ type var = int
 
 module Make(F:FIELD) = struct
   type row =
-    { mutable head : var
-    ; body : F.t array
+    { body : F.t array
     ; mutable const : F.t
     }
 
   type t =
-    { vars : var array (* vars.(i) is the id of the variable in column i*)
-    ; coeffs : F.t array (* coefficients of the weight function *)
+    { vars : var array (* vars.(i) is the id of the variable in column i *)
+    ; heads : var array (* heads.(i) is the variable of row i *)
+    ; coeffs : row (* coefficients of the weight function *)
     ; rows : row array
     }
 
