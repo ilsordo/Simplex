@@ -29,11 +29,8 @@ let array_find arr f = (* Some n if arr.[n] is the first elt of arr that verifie
     None
   with Found n -> Some n
 
-let array_update arr1 arr2 f exc = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n if exc = Some n *)
+let array_update arr1 arr2 ?exc:(pos=-1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
   assert Array.length arr1 == Array.length arr2;
-  let pos = match exc with
-    | Some n -> n
-    | None -> -1 in
   let _ =
     Array.fold_left
       (fun n x ->
@@ -81,27 +78,23 @@ let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving var
 
 let update_row ent lea r dict = (* row lea has been updated according to ent. now, update row r *)
   let coeff = r.body.(ent) in
-    begin
       r.body.(ent) <- F.zero;
-      array_update r.body dict.rows.(lea).body (fun _ c1 c2 -> c1 + coeff*c2 ) None;
+      array_update r.body dict.rows.(lea).body (fun _ c1 c2 -> c1 + coeff*c2 );
       r.const <- r.const + coeff*dict.rows.(lea).const
-    end
 
 let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
-  array_update dict.rows dict.rows (fun _ r _ -> update_row ent lea r dict) Some lea;
+  array_update dict.rows dict.rows ~exc:lea (fun _ r _ -> update_row ent lea r dict);
   update_row ent lea dict.coeffs dict
 
 let pivot ent lea dict = (* Pivot colum ent and row lea *)
   let ent_var = dict.vars.(ent) in (* name of the entering variable *)
   let piv_row = dict.rows.(lea) in (* row to be pivot *)
   let coeff = piv_row.body.(ent) in (* coeff of the entering variable into piv_row *)
-    begin
       dict.vars.(ent) <- dict.heads.(lea);
       dict.heads.(lea) <- ent_var;
       piv_row.body.(ent) <- neg F.one;
-      array_update piv_row piv_row (fun _ x _ -> x / (neg coeff)) None;
+      array_update piv_row piv_row (fun _ x _ -> x / (neg coeff));
       update_dict ent lea dict (* update the other rows + the objective *)
-    end
 
 let rec pivots dict = (* Pivots the dictionnary until being blocked *)
   match choose_entering dict with
@@ -120,25 +113,28 @@ let rec pivots dict = (* Pivots the dictionnary until being blocked *)
 let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
   let aux_dic = 
     { vars = Array.append dict.var [|aux_var|]
+    ; heads = dict.heads
     ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
     ; rows = dict.rows
     } in
-  array_update aux_dic.rows aux_dic.rows (fun n x _ -> Array.append x [|F.one|]) None in
+  array_update aux_dic.rows aux_dic.rows (fun n r _ -> Array.append r [|F.one|]);
   aux_dic
 
 let project_basic position dict = (* project the dictionary when the auxiliary variable is basic *) (** possible ? *)
   { vars = dict.vars
+  ; heads = partial_copy dict.heads position
   ; coeffs = dict.coeffs
   ; rows = partial_copy dict.rows position
   }
 
-let project_non_basic coeffs_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *) (** <------ *)
+(** >>>>>>>>>>>>> *)
+let project_non_basic coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *) (** <------ *)
   let pivot_pos = (* position of aux_var in dict.vars *)
     match array_find dict.vars (fun x -> x == aux_var) with
       | Some n -> n
       | None -> assert false in
   let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
-  array_update new_rows dict.rows (fun n _ r -> partial_copy r pivot_pos) None in
+  array_update new_rows dict.rows (fun n _ r -> partial_copy r pivot_pos) in
   let aux_var_coeff = dict.coeffs.(pivot_pos) in (* coefficient of the auxiliary variable in the objective function *)
   let new_coeffs = (** ne devrait contenir que des 0*) (** on suppose que coeffs est une row *)
     { head = dict.coeff.head
@@ -158,26 +154,23 @@ let project_non_basic coeffs_init vars_init aux_var dict = (* project the dictio
     ; coeffs = new_coeffs
     ; rows = new_rows
     }
- 
+(** <<<<<<<<<<<<< *)
+
 let project coeffs_init vars_init aux_var dict = (* End of first phase: project the dictionary according to aux_var *)
-  let position =
-    match array_find dict.rows (fun r -> r.head == aux_var) with
-      | Some n -> n (* auxiliary variable is basic *) (* possible ? *)
-      | None -> -1 in (* auxiliary variable is non basic *)
-  if position <> -1 then
-    project_basic coeffs_init vars_init aux_var dict
-  else
-    project_non_basic position dict
+  match array_find dict.heads (fun x -> x == aux_var) with
+    | Some n -> project_non_basic n dict (* auxiliary variable non is basic *) (* possible ? *)
+    | None -> project_basic coeffs_init vars_init aux_var dict in (* auxiliary variable is basic *)
 
 let first_phase dict = (* Simplex when first phase needed *)
+  let coeffs_init = Array.copy dict.coeffs in (* save the coeffs for later (projection of first phase) *)
+  let heads_init = Array.copy dict.heads in (* save the heads for later (projection of first phase) *)
+  let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
   let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
   let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-  let coeffs_init = Array.copy dict.coeffs in (* save the coeffs for later (projection of first phase) *)
-  let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
   match pivots dict with (* apply first phase's pivots *)
     | Opt dict | Unbounded (dict,ent) ->
-        let dict_proj = project coeffs_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-        if F.compare(dict.(**?*) F.zero) < 0 then
+        let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+        if F.compare(dict.coeffs.const F.zero) < 0 then
           Empty dict_proj
         else
           pivots dict_proj
