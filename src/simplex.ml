@@ -5,7 +5,7 @@ type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictiona
 
 let add_rows r1 r2 c = (* r1 <- r1 + c*r2 *)
   let _ = 
-    Array.fold
+    Array.fold_left
       (fun n x ->
         r1.(n) <- r1.(n) + c*x;
         n+1)
@@ -17,7 +17,7 @@ exception Found of int
 let array_find arr f = (* Some n if arr.[n] is the first elt of arr that verifies f x, None otherwise *)
   try
     let _ =
-      Array.fold
+      Array.fold_left
         (fun n x ->
           if f x then
             raise Found n
@@ -32,7 +32,7 @@ let array_update arr1 arr2 f exc = (* arr2.(n) <- f n arr1.(n), except for n if 
     | Some n -> n
     | None -> -1 in
   let _ =
-    Array.fold
+    Array.fold_left
       (fun n x ->
         if n <> pos then
           arr2.(n) <- f n x
@@ -43,7 +43,7 @@ let array_update arr1 arr2 f exc = (* arr2.(n) <- f n arr1.(n), except for n if 
 let partial_copy arr n = (* return a copy of array arr without entry n *)
   let new_arr = Array.make (Array.length arr - 1) arr.(0) in
   let (a,b) =
-    Array.fold
+    Array.fold_left
       (fun (m,pos) x ->
         if n == m then
           (m+1,pos)
@@ -63,7 +63,7 @@ let choose_entering dict = (* Some v if dict.vars.(v) is the entering variable, 
 
 let choose_leaving entering dict = (* Some v if dict.rows.(v).head is the leaving variable, None if unbounded *)
   let (_,max_var,_,denum) = 
-    Array.fold
+    Array.fold_left
       (fun (pos,pos_temp,num,denum) r -> 
          let (num_r,denum_r) = (r.const,r.body.(entering)) in
          if F.(compare num_r*denum_r F.zero) < 0 && F.(compare num_r*denum denum_r*num) >= 0 then (** marche aussi pour 1st phase ?*)
@@ -80,7 +80,7 @@ let update_rows ent lea dict = (* row lea has been updated according to ent, upd
   let update row = (* update one row *)
     begin
       row.const <- row.const + row.body.(ent)*dict.rows.(lea).const;
-      let _ = Array.fold
+      let _ = Array.fold_left
         (fun n x ->
           if n == ent then
             row.body.(n) <- row.body.(ent)*dict.rows.(lea).body.(n);
@@ -89,15 +89,15 @@ let update_rows ent lea dict = (* row lea has been updated according to ent, upd
           n+1)
         0 row.body in ()
     end in
-  let _ = Array.fold
+  let _ = Array.fold_left
     (fun n r ->
       if n <> lea then
         update r;
-      n+1){
+      n+1)
     0 dict.rows in ()
 
-let update_coeffs ent lea dict = (* row lea has been updated according to ent. update coeffs *) (** manque le coeff constant *) (** cette fonction est la précédante se simplifient si coeffs est une rows *)
-  let _ = Array.fold
+let update_coeffs ent lea dict = (* row lea has been updated according to ent. update coeffs *) (** manque le coeff constant *) (** cette fonction et la précédante se simplifient si coeffs est une rows *)
+  let _ = Array.fold_left
     (fun n x ->
       if n == ent then
         dict.coeffs.(n) <- dict.coeffs.(ent)*dict.rows.(lea).body.(n);
@@ -115,7 +115,7 @@ let pivot ent lea dict = (* Pivot colum ent and row lea *)
       dict.vars.(ent) <- piv_row.head;
       piv_row.head <- ent_var;
       piv_row.body.(ent) <- neg F.one;  
-      let _ = Array.fold 
+      let _ = Array.fold_left 
         (fun n x -> 
           piv_row.row.(n) <- x / (neg coef_piv); 
           n+1) 
@@ -139,8 +139,8 @@ let rec pivots dict = (* Pivots the dictionnary until being blocked *)
 
 let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
   let aux_dic = 
-    { vars = Array.append dict.var {aux_var}
-    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) {neg F.one}
+    { vars = Array.append dict.var [|aux_var|]
+    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
     ; rows = dict.rows
     } in
   array_update aux_dic.rows aux_dic.rows (fun n x -> Array.append x [|F.one|]) None in
@@ -165,7 +165,7 @@ let project_non_basic coeffs_init vars_init aux_var dict = (* project the dictio
     ; body = partial_copy dict.coeffs pivot_pos 
     ; const = dict.const
     } in
-  let _ = Array.fold
+  let _ = Array.fold_left
     (fun n v ->
       match (***) with
         | Some m -> add_rows new_coeffs dict.rows.(m) coeffs_init.(n) ; n+1
