@@ -115,12 +115,12 @@ let rec pivots dict = (* Pivots the dictionnary until being blocked *)
 
 let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
   let aux_dic =
-    { vars = Array.append dict.var [|aux_var|]
+    { vars = Array.append dict.vars [|aux_var|]
     ; heads = dict.heads
-    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
+    ; coeffs = { body = Array.append (Array.make (Array.length dict.coeffs.body) F.zero) [|F.(neg F.one)|] ; const = F.zero }
     ; rows = dict.rows
     } in
-  array_doublemap aux_dic.rows aux_dic.rows (fun r _ -> Array.append r [|F.one|]);
+  array_doublemap aux_dic.rows.body aux_dic.rows.body (fun r _ -> Array.append r [|F.one|]);
   aux_dic
 
 type place = Basic of int | Non_basic of int
