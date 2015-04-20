@@ -1,0 +1,8 @@
+MAXIMIZE
+0
+SUBJECT TO
+BOUNDS
+x = 0
+x <= -2
+VARIABLES
+x

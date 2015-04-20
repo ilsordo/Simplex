@@ -1,0 +1,24 @@
+MAXIMIZE
+0
+SUBJECT TO
+BOUNDS
+a >= 0
+b <= 0
+0 >= c
+0 <= d
+
+e <= 2
+e <= 0
+e <= 1
+
+1 <= f <= 2
+2 >= g >= 1
+
+0 <= h <= 0
+i = 0
+
+l<=-2
+m<=2
+
+VARIABLES
+a b c d e f g h i k

@@ -1,5 +1,6 @@
 open Field
 open Lp
+open Dictionary
 
 type action = Print
 
@@ -56,10 +57,16 @@ let main =
   let module F_dic = Dictionary.Make(F) in
   try
     let lp = F_parser.main Lexer.token lex in
-    let (conv, dic) = F_dic.make lp in
-    Printf.printf "Problem:\n%a\nConversion:\n%a\nDictionary:\n%a"
-      F_lp.print lp
-      F_dic.print_conv conv
+    Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
+    match F_dic.make lp with
+    | Invalid_constraint (var, x1, x2) ->
+      Printf.printf "Invalid constraint detected : %a <= %s <= %a\n"
+        F.print x1
+        var
+        F.print x2
+    | Conversion (conv, dic) ->
+      Printf.printf "Conversion:\n%a\nDictionary:\n%a"
+      (F_dic.print_conv true) conv
       F_dic.print dic
   with
   | Failure s ->

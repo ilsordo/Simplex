@@ -12,7 +12,7 @@ type 'a t = { objective : 'a varmap * 'a (* Objective function with constant ter
 
 module Process (F:FIELD) = struct
 
-  let print chan {objective; constraints; bounds} =
+  let print sorted chan {objective; constraints; bounds} =
     let print_bound chan = function
       | Inf x -> fprintf chan "[%a, +inf]" F.print x
       | Sup x -> fprintf chan "[-inf, %a]" F.print x
@@ -20,9 +20,14 @@ module Process (F:FIELD) = struct
       | Unconstrained -> fprintf chan "[-inf, +inf]" in
     let print_bounds chan bounds =
       fprintf chan "Bounds:\n";
-      Hashtbl.iter
-        (fun var bound -> fprintf chan "%s : %a\n" var print_bound bound)
-        bounds in
+      if sorted then
+        Hashtbl.fold (fun var bound acc -> (var, bound)::acc) bounds []
+        |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
+        |> List.iter (fun (var, bound) -> fprintf chan "%s : %a\n" var print_bound bound)
+      else
+        Hashtbl.iter
+          (fun var bound -> fprintf chan "%s : %a\n" var print_bound bound)
+          bounds in
     let rec print_lc_aux chan = function
       | [] -> ()
       | [(var, coeff)] ->

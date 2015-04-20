@@ -1,12 +1,14 @@
 open Field
 open Dictionary
 
-type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictionary.t
+
+module Make(Field:FIELD) = struct
+  type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictionary.t
 
 (************* Global functions ****************)
 
 let add_rows r1 r2 c = (* r1 <- r1 + c*r2 *)
-  let _ = 
+  let _ =
     Array.fold_left
       (fun n x ->
         r1.body.(n) <- r1.body.(n) + c*x;
@@ -62,9 +64,9 @@ let choose_entering dict = (* Some v if dict.vars.(v) is the entering variable, 
   array_find dict.coeffs (fun x -> F.(compare x F.zero) > 0)
 
 let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving variable, None if unbounded *)
-  let (_,max_var,_,denum) = 
+  let (_,max_var,_,denum) =
     Array.fold_left
-      (fun (pos,pos_temp,num,denum) r -> 
+      (fun (pos,pos_temp,num,denum) r ->
          let (num_r,denum_r) = (dict.heads.(pos),r.body.(ent)) in
          if F.(compare num_r*denum_r F.zero) < 0 && F.(compare num_r*denum denum_r*num) >= 0 then (** marche aussi pour 1st phase ?*)
            (pos+1,pos,num_r,denum_r)
@@ -98,10 +100,10 @@ let pivot ent lea dict = (* Pivot colum ent and row lea *)
 
 let rec pivots dict = (* Pivots the dictionnary until being blocked *)
   match choose_entering dict with
-    | Some ent -> 
+    | Some ent ->
         begin
           match choose_leaving ent dict with
-            | Some lea -> 
+            | Some lea ->
                 pivot ent lea dict;
                 pivots dict
             | None -> Unbounded (dict,ent)
@@ -111,7 +113,7 @@ let rec pivots dict = (* Pivots the dictionnary until being blocked *)
 (************* Simplex with First phase ****************)
 
 let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
-  let aux_dic = 
+  let aux_dic =
     { vars = Array.append dict.var [|aux_var|]
     ; heads = dict.heads
     ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
@@ -156,7 +158,7 @@ let project_non_basic coeffs_init heads_init vars_init aux_var dict = (* project
   let aux_var_coeff = dict.coeffs.(pivot_pos) in (* coefficient of the auxiliary variable in the objective function *)
   let new_coeffs = (** ne devrait contenir que des 0*) (** on suppose que coeffs est une row *)
     { head = dict.coeff.head
-    ; body = partial_copy dict.coeffs pivot_pos 
+    ; body = partial_copy dict.coeffs pivot_pos
     ; const = dict.const
     } in
   let _ = Array.fold_left
@@ -166,7 +168,7 @@ let project_non_basic coeffs_init heads_init vars_init aux_var dict = (* project
         | None -> (***) (** les dictionaires initiaux/actuels ne sont pas dans le même ordre *)
     )
     0 vars_init
-    
+
   proj_dict =
     { vars = partial_copy dict.vars pivot_pos
     ; coeffs = new_coeffs
@@ -200,3 +202,5 @@ let simplex dict = (* Apply the whole simplex *)
   match array_find dict.heads (fun x -> F.(compare x F.zero) < 0) with
     | Some _ -> first_phase dict
     | None -> pivots dict
+
+end
