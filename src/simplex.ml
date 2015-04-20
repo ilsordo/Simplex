@@ -124,7 +124,7 @@ let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary vari
 
 type place = Basic of int | Non_basic of int
 
-module Vars_map = Map.Make(struct type t = var*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
+module Vars_map = Map.Make(struct type t = var_id*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
 
 let save_place heads_init vars_init =
   let save_basic = 
