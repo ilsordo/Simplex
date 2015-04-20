@@ -99,46 +99,45 @@ module Make(F:FIELD) = struct
     Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body; (*** Vérifie ici***)
     update_dict ent lea dict (* update the other rows + the objective *)
 
-let rec pivots dict = (* Pivots the dictionnary until being blocked *)
-  match choose_entering dict with
-    | Some ent ->
-        begin
-          match choose_leaving ent dict with
-            | Some lea ->
-                pivot ent lea dict;
-                pivots dict
-            | None -> Unbounded (dict,ent)
-        end
+  let rec pivots dict = (* Pivots the dictionnary until being blocked *)
+    match choose_entering dict with
     | None -> Opt dict
+    | Some ent ->
+      match choose_leaving ent dict with
+      | None -> Unbounded (dict, ent)
+      | Some lea ->
+        pivot ent lea dict;
+        pivots dict
+
 
 (************* Simplex with First phase ****************)
 
-let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
-  let aux_dic =
-    { vars = Array.append dict.var [|aux_var|]
-    ; heads = dict.heads
-    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
-    ; rows = dict.rows
-    } in
-  array_doublemap aux_dic.rows aux_dic.rows (fun r _ -> Array.append r [|F.one|]);
-  aux_dic
+  let auxiliary_dict aux_var (dict : F.t Dictionary.t) = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
+    let aux_rows = Array.map (fun row -> {row with body = Array.append row.body [|F.(neg one)|]}) dict.rows in
+    let aux_dic =
+      { vars = Array.append dict.vars [|aux_var|]
+      ; heads = Array.copy dict.heads (* Safer *)
+      ; coeffs = {body = Array.(append (make (length dict.coeffs.body) F.zero) [|F.(neg one)|]); const = F.zero}
+      ; rows = aux_rows
+      } in
+    aux_dic
 
-type place = Basic of int | Non_basic of int
+  type place = Basic of int | Non_basic of int
 
-module Vars_map = Map.Make(struct type t = var_id*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
+  module Vars_map = Map.Make(struct type t = var_id*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
 
-let save_place heads_init vars_init =
-  let save_basic =
+  let save_place heads_init vars_init =
+    let save_basic =
+      Array.fold_left
+        (fun (pos,m) v_basic ->
+           (pos+1,Vars_map.add v_basic (Basic pos) m))
+        (0,Vars_map.empty)
+        heads_init in
     Array.fold_left
-      (fun (pos,m) v_basic ->
-        (pos+1,Vars_map.add v_basic (Basic pos) m))
-      (0,Vars_map.empty)
-      heads_init in
-  Array.fold_left
-    (fun (pos',m') v_nonbasic ->
-      (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
-    (0,save_basic)
-    vars_init
+      (fun (pos',m') v_nonbasic ->
+         (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
+      (0,save_basic)
+      vars_init
 
 let rec project_var v coeff places coeffs_init vars_init dict =
   if coeff <> 0 then
