@@ -128,6 +128,24 @@ let project_basic position dict = (* project the dictionary when the auxiliary v
   }
 
 (** >>>>>>>>>>>>> *)
+
+type place = Basic of int | Non_basic of int
+
+module Vars_map = Map.Make(struct type t = var*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
+
+let save_place heads_init vars_init =
+  let save_basic = 
+    Array.fold_left
+      (fun (pos,m) v_basic ->
+        (pos+1,Vars_map.add v_basic (Basic pos) m))
+      (0,Vars_map.empty)
+      heads_init in
+  Array.fold_left
+    (fun (pos',m') v_nonbasic ->
+      (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
+    (0,save_basic)
+    vars_init    
+
 let project_non_basic coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *) (** <------ *)
   let pivot_pos = (* position of aux_var in dict.vars *)
     match array_find dict.vars (fun x -> x == aux_var) with
