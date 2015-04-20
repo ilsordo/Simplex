@@ -3,7 +3,7 @@ open Dictionary
 
 module Make(Field:FIELD) = struct
 
-type t = Empty of Dictionary.t | Unbounded of Dictionary.t*int | Opt of Dictionary.t
+type 'a t = Empty of 'a Dictionary.t | Unbounded of ('a Dictionary.t)*int | Opt of 'a Dictionary.t
 
 (************* Global functions ****************)
 
@@ -24,20 +24,21 @@ let array_find arr f = (* Some n if arr.[n] is the first elt of arr that verifie
       Array.fold_left
         (fun n x ->
           if f x then
-            raise Found n
+            raise (Found n)
           else
             n+1)
         0 arr in
     None
   with Found n -> Some n
 
-let array_doublemap arr1 arr2 ?exc:(pos=-1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
-  assert Array.length arr1 == Array.length arr2;
+let array_doublemap arr1 arr2 ?(except = -1) f = (* arr1.(n) <- f n arr1.(n) arr2.(n), except for n *)
+  assert (Array.length arr1 == Array.length arr2);
   let _ =
     Array.fold_left
       (fun n x ->
-        if n <> pos then
-          arr1.(n) <- f arr1.(n) x
+        if n <> except then
+          arr1.(n) <- f arr1.(n) x;
+        n+1
       )
       0 arr2 in
   ()
@@ -55,37 +56,37 @@ let partial_copy arr n = (* return a copy of array arr without entry n *)
             (m+1,pos+1)
           end)
       (0,0) arr in
-  assert a <> b;
+  assert (a <> b);
   new_arr
 
 (************* Simplex without first phase ****************)
 
 let choose_entering dict = (* Some v if dict.vars.(v) is the entering variable, None if no entering variable *)
-  array_find dict.coeffs (fun x -> F.(compare x F.zero) > 0)
+  array_find dict.coeffs.body (fun x -> Field.(compare x Field.zero) > 0)
 
 let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving variable, None if unbounded *)
   let (_,max_var,_,denum) =
     Array.fold_left
       (fun (pos,pos_temp,num,denum) r ->
-         let (num_r,denum_r) = (dict.heads.(pos),r.body.(ent)) in
-         if F.(compare num_r*denum_r F.zero) < 0 && F.(compare num_r*denum denum_r*num) >= 0 then (** marche aussi pour 1st phase ?*)
+         let (num_r,denum_r) = (r.const,r.body.(ent)) in
+         if Field.(compare (num_r*denum_r) Field.zero) < 0 && Field.(compare (num_r*denum) (denum_r*num)) >= 0 then (** marche aussi pour 1st phase ?*)
            (pos+1,pos,num_r,denum_r)
          else
            (pos+1,pos_temp,num,denum))
-      (0,0,F.zero,F.zero) dict.rows in
-  if F.(compare denum F.zero) > 0 then
+      (0,0,Field.zero,Field.zero) dict.rows in
+  if Field.(compare denum Field.zero) > 0 then
     Some max_var
   else
     None
 
 let update_row ent lea r dict = (* row lea has been updated according to ent. now, update row r *)
   let coeff = r.body.(ent) in
-      r.body.(ent) <- F.zero;
-      array_doublemap r.body dict.rows.(lea).body (fun  c1 c2 -> c1 + coeff*c2 );
+      r.body.(ent) <- Field.zero;
+      array_doublemap r.body dict.rows.(lea).body (fun c1 c2 -> c1 + (coeff*c2));
       r.const <- r.const + coeff*dict.rows.(lea).const
 
 let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
-  array_doublemap dict.rows dict.rows ~exc:lea (fun r _ -> update_row ent lea r dict);
+  array_doublemap dict.rows dict.rows ~except:lea (fun r _ -> update_row ent lea r dict);
   update_row ent lea dict.coeffs dict
 
 let pivot ent lea dict = (* Pivot colum ent and row lea *)
@@ -94,7 +95,7 @@ let pivot ent lea dict = (* Pivot colum ent and row lea *)
   let coeff = piv_row.body.(ent) in (* coeff of the entering variable into piv_row *)
       dict.vars.(ent) <- dict.heads.(lea);
       dict.heads.(lea) <- ent_var;
-      piv_row.body.(ent) <- neg F.one;
+      piv_row.body.(ent) <- neg Field.one;
       array_doublemap piv_row piv_row (fun x _ -> x / (neg coeff));
       update_dict ent lea dict (* update the other rows + the objective *)
 
@@ -116,10 +117,10 @@ let auxiliary_dict aux_var dict = (* Start of first phase: add an auxiliary vari
   let aux_dic =
     { vars = Array.append dict.var [|aux_var|]
     ; heads = dict.heads
-    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) F.zero) [|neg F.one|]
+    ; coeffs = Array.append (Array.make (Array.length dict.coeffs) Field.zero) [|neg Field.one|]
     ; rows = dict.rows
     } in
-  array_doublemap aux_dic.rows aux_dic.rows (fun r _ -> Array.append r [|F.one|]);
+  array_doublemap aux_dic.rows aux_dic.rows (fun r _ -> Array.append r [|Field.one|]);
   aux_dic
 
 type place = Basic of int | Non_basic of int
@@ -171,9 +172,9 @@ let first_phase dict = (* Simplex when first phase needed *)
   let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
   let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
   match pivots dict with (* apply first phase's pivots *)
-    | Opt dict | Unbounded (dict,ent) ->
+    | Opt dict | Unbounded (dict,ent) ->
         let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-        if F.compare(dict.coeffs.const F.zero) < 0 then
+        if Field.compare(dict.coeffs.const Field.zero) < 0 then
           Empty dict_proj
         else
           pivots dict_proj
@@ -182,7 +183,7 @@ let first_phase dict = (* Simplex when first phase needed *)
 (************* Final function ****************)
 
 let simplex dict = (* Apply the whole simplex *)
-  match array_find dict.heads (fun x -> F.(compare x F.zero) < 0) with
+  match array_find dict.heads (fun x -> Field.(compare x Field.zero) < 0) with
     | Some _ -> first_phase dict
     | None -> pivots dict
 

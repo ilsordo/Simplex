@@ -1,6 +1,7 @@
 open Field
 open Lp
 open Dictionary
+open Simplex
 
 type action = Print
 
