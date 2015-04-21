@@ -56,6 +56,7 @@ let main =
   let module F_parser = Parser.Make(F) in
   let module F_lp = Lp.Process(F) in
   let module F_dic = Dictionary.Make(F) in
+  let module F_splx = Simplex.Make(F) in
   try
     let lp = F_parser.main Lexer.token lex in
     Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
@@ -66,9 +67,12 @@ let main =
         var
         F.print x2
     | Conversion (conv, dic) ->
-      Printf.printf "Conversion:\n%a\nDictionary:\n%a"
-      (F_dic.print_conv true) conv
-      F_dic.print dic
+      match (F_splx.simplex dic) with
+      | Opt dic -> 
+          Printf.printf "Conversion:\n%a\nDictionary:\n%a"
+          (F_dic.print_conv true) conv
+          F_dic.print dic
+      | _ -> ()
   with
   | Failure s ->
     let lexeme = Lexing.lexeme lex in
