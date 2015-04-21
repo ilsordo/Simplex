@@ -139,12 +139,7 @@ let module F_dic = Dictionary.Make(F) in Printf.printf "After pivot: \n%a" F_dic
             let _ = Array.fold_left
               (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places dict ; n+1) 0 dict.nonbasics in ()
 
-  let project coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
-    let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
-    let pivot_pos = (* position of aux_var in dict.nonbasics *)
-      match array_find (fun x -> x == aux_var) dict.nonbasics with
-        | Some n -> n
-        | None -> assert false in (** forcèment 0 - x0 ? *)
+  let project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
     let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs.body - 1) F.zero } in
     let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
       array_doublemap new_rows dict.rows (fun _ r -> { body = partial_copy r.body pivot_pos ; const = r.const});
@@ -158,6 +153,12 @@ let module F_dic = Dictionary.Make(F) in Printf.printf "After pivot: \n%a" F_dic
       let _ = Array.fold_left
         (fun n v -> project_var v coeffs_init.body.(n) places proj_dict ; n+1) 0 nonbasics_init in
       proj_dict
+
+  let project coeffs_init basics_init nonbasics_init aux_var dict = 
+    let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
+    match array_find (fun x -> x == aux_var) dict.nonbasics with
+      | Some pivot_pos -> project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict
+      | None -> dict (** strange: how to remove the auxiliary var ? *)
 
   let first_phase dict = (* Simplex when first phase needed *)
     let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
