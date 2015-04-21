@@ -50,7 +50,7 @@ module Make(F:FIELD) = struct
     array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body
 
   let choose_leaving ent dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
-    let (_, max_var, _, denum) =
+    let (_, max_var, num, _) =
     Array.fold_left
       (fun (pos, pos_temp, num, denum) r ->
          let (num_r, denum_r) = (r.const,r.body.(ent)) in
@@ -60,7 +60,7 @@ module Make(F:FIELD) = struct
            (pos+1, pos_temp, num, denum))
       (0 , 0, F.zero, F.zero)
       dict.rows in
-    if F.(compare denum F.zero) > 0 then
+    if F.(compare num F.zero) > 0 then
       Some max_var
     else
       None
