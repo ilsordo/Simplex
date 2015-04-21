@@ -1,0 +1,19 @@
+// opt (2 phases) : 11 for (x1,x2) = (4,3)
+
+MAXIMIZE
+
+2 x1 + x2
+
+SUBJECT TO
+
+BOUNDS
+
+-2 x1 + x2 <= -2
+x1 - 2 x2 <= -2
+x1 + x2 <= 7
+
+x1 >= 0
+x2 >= 0
+
+VARIABLES
+x1 x2

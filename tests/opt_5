@@ -1,0 +1,19 @@
+// opt : 1020 for (x,y) = (300,600)
+
+MAXIMIZE
+
+x + 1.2 y
+
+SUBJECT TO
+
+BOUNDS
+
+2 x <= 1000
+4 x + 3 y <= 3000
+2 x + 3 y <= 2400
+
+x >= 0
+y >= 0
+
+VARIABLES
+x y

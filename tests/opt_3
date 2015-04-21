@@ -1,0 +1,18 @@
+// opt : 10250 for (x,y) = (25,75)
+
+MAXIMIZE
+
+50 x + 120 y
+
+SUBJECT TO
+
+BOUNDS
+
+x + y <= 100
+10 x + 50 y <= 4000
+
+x >= 0
+y >= 0
+
+VARIABLES
+x y

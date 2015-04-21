@@ -1,0 +1,20 @@
+// opt unbounded : -20 for (x1,x2,x3) = (0,12+t,22+t,0)
+
+MAXIMIZE
+
+-3 x1 + 2 x2 -2 x3 - x4
+
+SUBJECT TO
+
+BOUNDS
+
+4 x1 - 2 x2 + x3 - x4 <= -2
+- x1 + x2 - x3 <= -10
+
+x1 >= 0
+x2 >= 0
+x3 >= 0
+x4 >= 0
+
+VARIABLES
+x1 x2 x3 x4

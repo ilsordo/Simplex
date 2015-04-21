@@ -1,0 +1,19 @@
+// opt : 25000 for (x,y) = (0,5000)
+
+MAXIMIZE
+
+3 x + 5 y
+
+SUBJECT TO
+
+BOUNDS
+
+x + 2 y <= 10000
+2 x + 3 y <= 12000
+x + 4 y <= 15000
+
+x >= 0
+y >= 0
+
+VARIABLES
+x y
