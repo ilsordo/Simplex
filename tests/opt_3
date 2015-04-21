@@ -6,10 +6,10 @@ MAXIMIZE
 
 SUBJECT TO
 
-BOUNDS
-
 x + y <= 100
 10 x + 50 y <= 4000
+
+BOUNDS
 
 x >= 0
 y >= 0
