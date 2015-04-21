@@ -79,5 +79,6 @@ let main =
     let pos = Lexing.lexeme_start_p lex in
     let col = Lexing.(pos.pos_cnum - pos.pos_bol) in
     Printf.eprintf "Input error: (line %d, char %d) %s\n%s\n%!" pos.Lexing.pos_lnum col lexeme s; exit 1
-  |  _ ->
+  (*|  _ ->
     Printf.eprintf "Input error\n%!"; exit 1
+  *)
