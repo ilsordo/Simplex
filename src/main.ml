@@ -57,27 +57,34 @@ let main =
   let module F_lp = Lp.Process(F) in
   let module F_dic = Dictionary.Make(F) in
   let module F_splx = Simplex.Make(F) in
-  try
-    let lp = F_parser.main Lexer.token lex in
-    Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
-    match F_dic.make lp with
-    | Invalid_constraint (var, x1, x2) ->
-      Printf.printf "Invalid constraint detected : %a <= %s <= %a\n"
-        F.print x1
-        var
-        F.print x2
-    | Conversion (conv, dic) ->
-      match (F_splx.simplex dic) with
-      | Opt dic -> 
-          Printf.printf "Conversion:\n%a\nDictionary:\n%a"
-          (F_dic.print_conv true) conv
-          F_dic.print dic
-      | _ -> ()
-  with
-  | Failure s ->
-    let lexeme = Lexing.lexeme lex in
-    let pos = Lexing.lexeme_start_p lex in
-    let col = Lexing.(pos.pos_cnum - pos.pos_bol) in
-    Printf.eprintf "Input error: (line %d, char %d) %s\n%s\n%!" pos.Lexing.pos_lnum col lexeme s; exit 1
-  |  _ ->
-    Printf.eprintf "Input error\n%!"; exit 1
+  let lp = try F_parser.main Lexer.token lex
+    with Failure s ->
+      let lexeme = Lexing.lexeme lex in
+      let pos = Lexing.lexeme_start_p lex in
+      let col = Lexing.(pos.pos_cnum - pos.pos_bol) in
+      Printf.eprintf "Input error: (line %d, char %d) %s\n%s\n%!" pos.Lexing.pos_lnum col lexeme s;
+      exit 1
+  in
+  Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
+  match F_dic.make lp with
+  | exception Failure s ->
+    Printf.eprintf "Error : %s" s;
+    exit 1
+  | Invalid_constraint (var, x1, x2) ->
+    Printf.printf "Invalid constraint detected : %a <= %s <= %a\n"
+      F.print x1 var F.print x2
+  | Conversion (conv, dic) ->
+    Printf.printf "Conversion:\n%a\nDictionary:\n%a\n"
+      (F_dic.print_conv true) conv
+      F_dic.print dic;
+    match (F_splx.simplex dic) with
+    | Opt sol ->
+      Printf.printf "Optimal solution:\n%a\n"
+        F_dic.print sol
+    | Empty sol ->
+      Printf.printf "Empty domain:\n%a\n"
+        F_dic.print sol
+    | Unbounded (sol, n) ->
+      Printf.printf "Unbounded domain: %d\n%a\n"
+        n
+        F_dic.print sol

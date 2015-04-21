@@ -56,6 +56,27 @@ module Make(F:FIELD) = struct
                 ; coeffs = make_row n_vars ()
                 ; rows = Array.init (List.length consts) (make_row n_vars)
                 } in
+      let apply_constr (lc, c) row =
+        row.const <- c;
+        List.iter
+          (fun (var, coeff) ->
+             match Hashtbl.find conversion var with
+             | Unbounded (n1, n2) ->
+               row.body.(n1) <- coeff;
+               row.body.(n2) <- F.neg coeff
+             | Shift (n, x) ->
+               row.body.(n) <- coeff;
+               row.const <- F.(row.const + coeff * x)
+             | Swap_and_shift (n, x) ->
+               row.body.(n) <- F.neg coeff;
+               row.const <- F.(row.const + coeff * x) (* A vérifier *)
+             | Constant x ->
+               row.const <- F.(row.const + x)
+             | exception Not_found -> raise (Failure ("Unknown variable : "^var)))
+          lc
+      in
+      apply_constr objective dic.coeffs;
+      List.iteri (fun i constr -> apply_constr constr dic.rows.(i)) constraints;
       Conversion (conversion, dic)
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
