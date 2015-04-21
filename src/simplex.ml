@@ -21,16 +21,16 @@ module Make(F:FIELD) = struct
       Array.iteri
         (fun n x -> if f x then raise (Found n))
         arr;
-    None
+      None
     with Found n -> Some n
 
-  let array_doublemap arr1 arr2 ?(except = -1) f = (* arr1.(n) <- f arr1.(n) arr2.(n), except for n *)
+  let array_doublemap arr1 arr2 f = (* arr1.(n) <- f arr1.(n) arr2.(n) *)
     assert (Array.length arr1 == Array.length arr2);
     Array.iteri
-      (fun n x -> if n <> except then arr1.(n) <- f arr1.(n) x)
+      (fun n x -> arr1.(n) <- f arr1.(n) x)
       arr2
 
-  let array_iter ?(except = -1) f =
+  let array_iter except f =
     Array.iteri (fun n x -> if n <> except then f x)
 
   let partial_copy arr n = (* return a copy of array arr without entry n *)
@@ -43,19 +43,6 @@ module Make(F:FIELD) = struct
            else
              arr.(i+1)) in
     new_arr
-
-
-  (* let (a,b) = Array.fold_left
-      (fun (m,pos) x ->
-        if n == m then
-          (m+1,pos)
-        else
-          begin
-            new_arr.(pos) <- x;
-            (m+1,pos+1)
-          end)
-      (0,0) arr in
-     assert (a <> b);*)
 
   (************* Simplex without first phase ****************)
 
@@ -86,7 +73,7 @@ module Make(F:FIELD) = struct
 
   let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
     let lea_r = dict.rows.(lea) in
-    array_iter ~except:lea (fun r -> update_row ent lea_r r) dict.rows;
+    array_iter lea (fun r -> update_row ent lea_r r) dict.rows;
     update_row ent lea_r dict.coeffs
 
   let pivot ent lea dict = (* Pivot colum ent and row lea *)
@@ -96,7 +83,8 @@ module Make(F:FIELD) = struct
     dict.vars.(ent) <- dict.heads.(lea);
     dict.heads.(lea) <- ent_var;
     piv_row.body.(ent) <- F.(neg one);
-    Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body; (*** Vérifie ici***)
+    piv_row.const <- F.(piv_row.const / (neg coeff));
+    Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body;
     update_dict ent lea dict (* update the other rows + the objective *)
 
   let rec pivots dict = (* Pivots the dictionnary until being blocked *)
@@ -108,7 +96,6 @@ module Make(F:FIELD) = struct
       | Some lea ->
         pivot ent lea dict;
         pivots dict
-
 
 (************* Simplex with First phase ****************)
 
@@ -141,60 +128,60 @@ module Make(F:FIELD) = struct
         vars_init in
       res
 
-let rec project_var v coeff places coeffs_init vars_init dict =
-  if coeff <> F.zero then
-    match Vars_map.find v places with
-      | Non_basic pos -> dict.coeffs.body.(pos) <- coeff
-      | Basic pos ->
-          dict.coeffs.const <- coeffs_init.const;
-          let _ = Array.fold_left
-            (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
+  let rec project_var v coeff places coeffs_init vars_init dict =
+    if coeff <> F.zero then
+      match Vars_map.find v places with
+        | Non_basic pos -> dict.coeffs.body.(pos) <- coeff
+        | Basic pos ->
+            dict.coeffs.const <- coeffs_init.const;
+            let _ = Array.fold_left
+              (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
 
-let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
-  let places = save_place heads_init vars_init in
-  let pivot_pos = (* position of aux_var in dict.vars *)
-    match array_find (fun x -> x == aux_var) dict.vars with
-      | Some n -> n
-      | None -> assert false in (** forcèment 0 - x0 ? *)
-  let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs.body - 1) F.zero } in
-  let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
-    array_doublemap new_rows dict.rows (fun _ r -> { body = partial_copy r.body pivot_pos ; const = r.const});
-  let proj_dict =
-    { vars = partial_copy dict.vars pivot_pos
-    ; heads = dict.heads
-    ; coeffs = new_coeffs
-    ; rows = new_rows
-    } in
-    let _ = Array.fold_left
-      (fun n v -> project_var v coeffs_init.body.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in
-    proj_dict
+  let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
+    let places = save_place heads_init vars_init in
+    let pivot_pos = (* position of aux_var in dict.vars *)
+      match array_find (fun x -> x == aux_var) dict.vars with
+        | Some n -> n
+        | None -> assert false in (** forcèment 0 - x0 ? *)
+    let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs.body - 1) F.zero } in
+    let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
+      array_doublemap new_rows dict.rows (fun _ r -> { body = partial_copy r.body pivot_pos ; const = r.const});
+    let proj_dict =
+      { vars = partial_copy dict.vars pivot_pos
+      ; heads = dict.heads
+      ; coeffs = new_coeffs
+      ; rows = new_rows
+      } in
+      let _ = Array.fold_left
+        (fun n v -> project_var v coeffs_init.body.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in
+      proj_dict
 
-let first_phase dict = (* Simplex when first phase needed *)
-  let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
-  let heads_init = Array.copy dict.heads in (* save the heads for later (projection of first phase) *)
-  let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
-  let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
-  let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-  match choose_leaving (Array.length dict.vars - 1) dict with (** ok ?*)
-    | None -> assert false
-    | Some lea ->
-        begin
-          pivot (Array.length dict.vars - 1) lea dict; (* illegal pivot *)
-          match pivots dict with
-            | Opt dict | Unbounded (dict,_) ->
-                let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-                if F.(compare dict.coeffs.const F.zero) < 0 then
-                  Empty dict_proj
-                else
-                  pivots dict_proj
-            | _ -> assert false
-        end
+  let first_phase dict = (* Simplex when first phase needed *)
+    let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
+    let heads_init = Array.copy dict.heads in (* save the heads for later (projection of first phase) *)
+    let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
+    let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
+    let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
+    match choose_leaving (Array.length dict.vars - 1) dict with (** ok ?*)
+      | None -> assert false
+      | Some lea ->
+          begin
+            pivot (Array.length dict.vars - 1) lea dict; (* illegal pivot *)
+            match pivots dict with
+              | Opt dict | Unbounded (dict,_) ->
+                  let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+                  if F.(compare dict.coeffs.const F.zero) < 0 then
+                    Empty dict_proj
+                  else
+                    pivots dict_proj
+              | _ -> assert false
+          end
 
-(************* Final function ****************)
+  (************* Final function ****************)
 
-let simplex dict = (* Apply the whole simplex *)
-  match array_find (fun r -> F.(compare r.const F.zero) < 0) dict.rows with
-    | Some _ -> first_phase dict
-    | None -> pivots dict
+  let simplex dict = (* Apply the whole simplex *)
+    match array_find (fun r -> F.(compare r.const F.zero) < 0) dict.rows with
+      | Some _ -> first_phase dict
+      | None -> pivots dict
 
 end
