@@ -161,7 +161,7 @@ module Make(F:FIELD) = struct
             (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places dict ; n+1) 0 dict.nonbasics in ()
 
     let project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *) 
-	let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
+let module F_dic = Dictionary.Make(F) in Profile.dprintf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
     let pivot_pos = (* position of aux_var in dict.nonbasics *)
       match array_find (fun x -> x == aux_var) dict.nonbasics with
       | Some n -> n
@@ -181,6 +181,7 @@ module Make(F:FIELD) = struct
       proj_dict
 
   let project coeffs_init basics_init nonbasics_init aux_var dict = 
+    let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
     match array_find (fun x -> x == aux_var) dict.nonbasics with
       | Some pivot_pos -> project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict
       | None -> dict (** strange: how to remove the auxiliary var ? *)
