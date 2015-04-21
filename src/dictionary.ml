@@ -9,8 +9,8 @@ type 'a row =
     }
 
 type 'a t =
-  { vars : var_id array (* vars.(i) is the id of the variable in column i *)
-  ; heads : var_id array (* heads.(i) is the variable of row i *)
+  { nonbasics : var_id array (* nonbasics.(i) is the id of the variable in column i *)
+  ; basics : var_id array (* basics.(i) is the variable of row i *)
   ; coeffs : 'a row (* coefficients of the weight function *)
   ; rows : 'a row array
   }
@@ -51,8 +51,8 @@ module Make(F:FIELD) = struct
       in
       let (n_vars, consts) = Hashtbl.fold process_bounds bounds (0, constraints) in
       let n_consts = List.length constraints in
-      let dic = { vars = Array.init n_vars (fun x -> x)
-                ; heads = Array.init n_consts (fun n -> n + n_vars)
+      let dic = { nonbasics = Array.init n_vars (fun x -> x)
+                ; basics = Array.init n_consts (fun n -> n + n_vars)
                 ; coeffs = make_row n_vars ()
                 ; rows = Array.init (List.length consts) (make_row n_vars)
                 } in
@@ -78,9 +78,9 @@ module Make(F:FIELD) = struct
         | Constant x -> fprintf chan "%s => %a\n" v F.print x in
       Hashtbl.iter print_var conv
 
-  let print chan ({vars; heads; coeffs; rows} as dic) =
+  let print chan ({nonbasics; basics; coeffs; rows} as dic) =
     let open Printf in
-    let numvars = Array.length dic.vars in
+    let numvars = Array.length dic.nonbasics in
     let varname i =
       if i < numvars then
         sprintf "x_%d" i
@@ -92,7 +92,7 @@ module Make(F:FIELD) = struct
     let st = "Such that" in
     let cst = "Constant" in
     let hd = max (String.length mx) (String.length st) in
-    let rownames = Array.map varname heads in
+    let rownames = Array.map varname basics in
     let lwidth = 2 + Array.fold_right max_length rownames hd in
     let const_name = F.to_string coeffs.const in
     let consts_names = Array.map (fun {const; _} -> F.to_string const) rows in

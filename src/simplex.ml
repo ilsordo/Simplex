@@ -46,10 +46,10 @@ module Make(F:FIELD) = struct
 
   (************* Simplex without first phase ****************)
 
-  let choose_entering dict = (* Some v if dict.vars.(v) is the entering variable, None if no entering variable *)
+  let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *)
     array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body
 
-  let choose_leaving ent dict = (* Some v if dict.rows.(v).head is the leaving variable, None if unbounded *)
+  let choose_leaving ent dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
     let (_, max_var, _, denum) =
     Array.fold_left
       (fun (pos, pos_temp, num, denum) r ->
@@ -71,17 +71,17 @@ module Make(F:FIELD) = struct
     array_doublemap r.body lea_r.body (fun c1 c2 -> F.(c1 + (coeff * c2)));
     r.const <- F.(r.const + (coeff * lea_r.const))
 
-  let update_dict ent lea dict = (* update all the dictionary, excepting row lea and vars *)
+  let update_dict ent lea dict = (* update all the dictionary, excepting row lea and nonbasics *)
     let lea_r = dict.rows.(lea) in
     array_iter lea (fun r -> update_row ent lea_r r) dict.rows;
     update_row ent lea_r dict.coeffs
 
   let pivot ent lea dict = (* Pivot colum ent and row lea *)
-    let ent_var = dict.vars.(ent) in (* name of the entering variable *)
+    let ent_var = dict.nonbasics.(ent) in (* name of the entering variable *)
     let piv_row = dict.rows.(lea) in (* row to be pivot *)
     let coeff = piv_row.body.(ent) in (* coeff of the entering variable into piv_row *)
-    dict.vars.(ent) <- dict.heads.(lea);
-    dict.heads.(lea) <- ent_var;
+    dict.nonbasics.(ent) <- dict.basics.(lea);
+    dict.basics.(lea) <- ent_var;
     piv_row.body.(ent) <- F.(neg one);
     piv_row.const <- F.(piv_row.const / (neg coeff));
     Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body;
@@ -102,8 +102,8 @@ module Make(F:FIELD) = struct
   let auxiliary_dict aux_var (dict : F.t Dictionary.t) = (* Start of first phase: add an auxiliary variable, called aux_var, to the dictionnary *)
     let aux_rows = Array.map (fun row -> {row with body = Array.append row.body [|F.(neg one)|]}) dict.rows in
     let aux_dic =
-      { vars = Array.append dict.vars [|aux_var|]
-      ; heads = Array.copy dict.heads (* Safer *)
+      { nonbasics = Array.append dict.nonbasics [|aux_var|]
+      ; basics = Array.copy dict.basics (* Safer *)
       ; coeffs = {body = Array.(append (make (length dict.coeffs.body) F.zero) [|F.(neg one)|]); const = F.zero}
       ; rows = aux_rows
       } in
@@ -111,65 +111,65 @@ module Make(F:FIELD) = struct
 
   type place = Basic of int | Non_basic of int
 
-  module Vars_map = Map.Make(struct type t = var_id let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
+  module Nonbasics_map = Map.Make(struct type t = var_id let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then basics.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
 
-  let save_place heads_init vars_init =
+  let save_place basics_init nonbasics_init =
     let (_,save_basic) =
       Array.fold_left
         (fun (pos,m) v_basic ->
-           (pos+1,Vars_map.add v_basic (Basic pos) m))
-        (0,Vars_map.empty)
-        heads_init in
+           (pos+1,Nonbasics_map.add v_basic (Basic pos) m))
+        (0,Nonbasics_map.empty)
+        basics_init in
     let (_,res) =
       Array.fold_left
         (fun (pos',m') v_nonbasic ->
-           (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
+           (pos'+1,Nonbasics_map.add v_nonbasic (Non_basic pos') m'))
         (0,save_basic)
-        vars_init in
+        nonbasics_init in
       res
 
-  let rec project_var v coeff places coeffs_init vars_init dict =
+  let rec project_var v coeff places coeffs_init nonbasics_init dict =
     if coeff <> F.zero then
-      match Vars_map.find v places with
+      match Nonbasics_map.find v places with
         | Non_basic pos -> dict.coeffs.body.(pos) <- coeff
         | Basic pos ->
             dict.coeffs.const <- coeffs_init.const;
             let _ = Array.fold_left
-              (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
+              (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places coeffs_init nonbasics_init dict ; n+1) 0 nonbasics_init in ()
 
-  let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
-    let places = save_place heads_init vars_init in
-    let pivot_pos = (* position of aux_var in dict.vars *)
-      match array_find (fun x -> x == aux_var) dict.vars with
+  let project coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
+    let places = save_place basics_init nonbasics_init in
+    let pivot_pos = (* position of aux_var in dict.nonbasics *)
+      match array_find (fun x -> x == aux_var) dict.nonbasics with
         | Some n -> n
         | None -> assert false in (** forcèment 0 - x0 ? *)
     let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs.body - 1) F.zero } in
     let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
       array_doublemap new_rows dict.rows (fun _ r -> { body = partial_copy r.body pivot_pos ; const = r.const});
     let proj_dict =
-      { vars = partial_copy dict.vars pivot_pos
-      ; heads = dict.heads
+      { nonbasics = partial_copy dict.nonbasics pivot_pos
+      ; basics = dict.basics
       ; coeffs = new_coeffs
       ; rows = new_rows
       } in
       let _ = Array.fold_left
-        (fun n v -> project_var v coeffs_init.body.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in
+        (fun n v -> project_var v coeffs_init.body.(n) places coeffs_init nonbasics_init proj_dict ; n+1) 0 nonbasics_init in
       proj_dict
 
   let first_phase dict = (* Simplex when first phase needed *)
     let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
-    let heads_init = Array.copy dict.heads in (* save the heads for later (projection of first phase) *)
-    let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
-    let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
+    let basics_init = Array.copy dict.basics in (* save the basics for later (projection of first phase) *)
+    let nonbasics_init = Array.copy dict.nonbasics in (* save the nonbasics for later (projection of first phase) *)
+    let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-    match choose_leaving (Array.length dict.vars - 1) dict with (** ok ?*)
+    match choose_leaving (Array.length dict.nonbasics - 1) dict with (** ok ?*)
       | None -> assert false
       | Some lea ->
           begin
-            pivot (Array.length dict.vars - 1) lea dict; (* illegal pivot *)
+            pivot (Array.length dict.nonbasics - 1) lea dict; (* illegal pivot *)
             match pivots dict with
               | Opt dict | Unbounded (dict,_) ->
-                  let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+                  let dict_proj = project coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
                   if F.(compare dict.coeffs.const F.zero) < 0 then
                     Empty dict_proj
                   else
