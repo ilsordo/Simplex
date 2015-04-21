@@ -124,48 +124,53 @@ module Make(F:FIELD) = struct
 
   type place = Basic of int | Non_basic of int
 
-  module Vars_map = Map.Make(struct type t = var_id*int let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
+  module Vars_map = Map.Make(struct type t = var_id let compare = compare end) (* place of each variable in the initial dictionary. If v -> Basic n, then heads.(n) = v. If v -> Non_basic n then coeffs.(n) = v *)
 
   let save_place heads_init vars_init =
-    let save_basic =
+    let (_,save_basic) =
       Array.fold_left
         (fun (pos,m) v_basic ->
            (pos+1,Vars_map.add v_basic (Basic pos) m))
         (0,Vars_map.empty)
         heads_init in
-    Array.fold_left
-      (fun (pos',m') v_nonbasic ->
-         (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
-      (0,save_basic)
-      vars_init
+    let (_,res) =
+      Array.fold_left
+        (fun (pos',m') v_nonbasic ->
+           (pos'+1,Vars_map.add v_nonbasic (Non_basic pos') m'))
+        (0,save_basic)
+        vars_init in
+      res
 
 let rec project_var v coeff places coeffs_init vars_init dict =
-  if coeff <> 0 then
-    match find v places with
+  if coeff <> F.zero then
+    match Vars_map.find v places with
       | Non_basic pos -> dict.coeffs.body.(pos) <- coeff
       | Basic pos ->
           dict.coeffs.const <- coeffs_init.const;
           let _ = Array.fold_left
-            (fun n var -> project_var var (dict.rows.(pos).(n)*coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
+            (fun n var -> project_var var F.(dict.rows.(pos).body.(n) * coeff) places coeffs_init vars_init dict ; n+1) 0 vars_init in ()
 
 let project coeffs_init heads_init vars_init aux_var dict = (* project the dictionary when the auxiliary variable is non basic *)
   let places = save_place heads_init vars_init in
   let pivot_pos = (* position of aux_var in dict.vars *)
-    match array_find dict.vars (fun x -> x == aux_var) with
+    match array_find (fun x -> x == aux_var) dict.vars with
       | Some n -> n
       | None -> assert false in (** forcèment 0 - x0 ? *)
-  let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs - 1) 0 } in
+  let new_coeffs = { const = coeffs_init.const; body = Array.make (Array.length dict.coeffs.body - 1) F.zero } in
+  let new_rows = Array.make (Array.length dict.rows) dict.rows.(0) in
+    array_doublemap new_rows dict.rows (fun _ r -> { body = partial_copy r.body pivot_pos ; const = r.const});
   let proj_dict =
     { vars = partial_copy dict.vars pivot_pos
     ; heads = dict.heads
     ; coeffs = new_coeffs
-    ; rows = array_doublemap (Array.make (Array.length dict.rows) dict.rows.(0)) dict.rows (fun _ r -> partial_copy r pivot_pos)
+    ; rows = new_rows
     } in
     let _ = Array.fold_left
-      (fun n v -> project_var v coeffs_init.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in ()
+      (fun n v -> project_var v coeffs_init.body.(n) places coeffs_init vars_init proj_dict ; n+1) 0 vars_init in
+    proj_dict
 
 let first_phase dict = (* Simplex when first phase needed *)
-  let coeffs_init = Array.copy dict.coeffs in (* save the coeffs for later (projection of first phase) *)
+  let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
   let heads_init = Array.copy dict.heads in (* save the heads for later (projection of first phase) *)
   let vars_init = Array.copy dict.vars in (* save the vars for later (projection of first phase) *)
   let aux_var = Array.length dict.rows + Array.length dict.vars + 1 in (* name of the auxiliary variable to add *)
@@ -174,11 +179,11 @@ let first_phase dict = (* Simplex when first phase needed *)
     | None -> assert false
     | Some lea ->
         begin
-          pivot ent lea dict; (* illegal pivot *)
+          pivot (Array.length dict.vars - 1) lea dict; (* illegal pivot *)
           match pivots dict with
-            | Opt dict | Unbounded (dict,ent) ->
+            | Opt dict | Unbounded (dict,_) ->
                 let dict_proj = project coeffs_init heads_init vars_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-                if F.compare(dict.coeffs.const F.zero) < 0 then
+                if F.(compare dict.coeffs.const F.zero) < 0 then
                   Empty dict_proj
                 else
                   pivots dict_proj
@@ -188,7 +193,7 @@ let first_phase dict = (* Simplex when first phase needed *)
 (************* Final function ****************)
 
 let simplex dict = (* Apply the whole simplex *)
-  match array_find dict.heads (fun x -> F.(compare x F.zero) < 0) with
+  match array_find (fun r -> F.(compare r.const F.zero) < 0) dict.rows with
     | Some _ -> first_phase dict
     | None -> pivots dict
 
