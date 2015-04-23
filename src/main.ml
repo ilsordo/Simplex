@@ -94,11 +94,18 @@ let main =
       if !steps then Printf.printf "Conversion:\n%a\nDictionary:\n%a\n"
           (F_dic.print_conv true) conv
           F_dic.print dic;
-      match (F_splx.simplex dic) with
+      match F_splx.simplex dic with
       | Opt sol ->
+        let s = F_dic.solution conv sol in
+        let sol1 = (F_dic.check_sol s lp) in
         Printf.printf "Optimal solution: %a\n%a\n"
           F.print sol.coeffs.const
-          F_dic.print_sol (F_dic.solution conv sol)
+          F_dic.print_sol s;
+        if F.compare sol1 sol.coeffs.const <> 0 then
+          (Printf.printf "Solution from dict : %a\nSolution after eval : %a\n"
+            F.print sol.coeffs.const
+            F.print sol1;
+           exit 1)
       | Empty sol ->
         Printf.printf "Empty domain:\n%a\n"
           F_dic.print sol

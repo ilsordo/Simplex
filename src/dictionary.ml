@@ -66,7 +66,7 @@ module Make(F:FIELD) = struct
                row.body.(n2) <- F.neg coeff
              | Shift (n, x) ->
                row.body.(n) <- coeff;
-               row.const <- F.(row.const + coeff * x)
+               row.const <- F.(row.const - coeff * x)
              | Swap_and_shift (n, x) ->
                row.body.(n) <- F.neg coeff;
                row.const <- F.(row.const + coeff * x) (* A vérifier *)
@@ -81,17 +81,20 @@ module Make(F:FIELD) = struct
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
   let solution conv dic =
-    let vars = Array.make (Array.length dic.nonbasics) F.zero in
+    let numvars = Array.length dic.nonbasics in
+    let vars = Array.make numvars F.zero in
     Array.iteri
-      (fun i v -> vars.(i) <- dic.rows.(i).const)
+      (fun i v ->
+         if v < numvars then
+           vars.(v) <- dic.rows.(i).const)
       dic.basics;
     let eval = function
       | Unbounded (n1, n2) ->
         F.(vars.(n1) - vars.(n2))
       | Shift (n, x) ->
-        F.(vars.(n) - x)
+        F.(vars.(n) + x)
       | Swap_and_shift (n, x) ->
-        F.((neg vars.(n)) - x)
+        F.(x - vars.(n))
       | Constant x ->
         x in
     let vals = Hashtbl.create (Hashtbl.length conv) in
@@ -99,6 +102,29 @@ module Make(F:FIELD) = struct
       (fun n c -> Hashtbl.add vals n (eval c))
       conv;
     vals
+
+  let check_sol vals {objective; constraints; bounds} =
+    let eval (vars, const) =
+      List.fold_left
+        (fun x (v, c) -> F.(x + c * (Hashtbl.find vals v)))
+        const
+        vars in
+    let check_bound v b =
+      let x = Hashtbl.find vals v in
+      match b with
+      | Unconstrained -> ()
+      | Inf a -> assert (F.compare x a >= 0)
+      | Sup a -> assert (F.compare x a <= 0)
+      | Both (a, b) -> assert (F.compare x a >= 0 && F.compare x b <= 0) in
+    List.iteri
+      (fun i c ->
+           if F.(compare (eval c) zero) < 0 then
+             Printf.printf "Error : %d %a\n" i F.print (eval c)
+      )
+      constraints;
+    Hashtbl.iter check_bound bounds;
+    eval objective
+
 
   let print_sol chan vals =
     let print_var (v, x) =
