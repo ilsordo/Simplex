@@ -56,7 +56,7 @@ module Make(F:FIELD) = struct
             (pos+1,n_max,w_max))
         (0,0,F.zero) 
     dict.coeffs.body in
-    if F.(compare w zero) = 0 then
+    if F.(compare w zero) > 0 then
       Some pos
     else
       None
