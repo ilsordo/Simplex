@@ -47,7 +47,21 @@ module Make(F:FIELD) = struct
   (************* Simplex without first phase ****************)
 
   let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *)
-    array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body
+    let (_,pos,w) = 
+      Array.fold_left
+        (fun (pos,n_max,w_max) x ->
+          if F.(compare x w_max) > 0 then
+            (pos+1,pos,x)
+          else
+            (pos+1,n_max,w_max))
+        (0,0,F.zero) 
+    dict.coeffs.body in
+    if F.(compare w zero) = 0 then
+      Some pos
+    else
+      None
+
+    (*array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body*)
 
   let choose_leaving ent ?(first_phase = false) dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
     let fp = if first_phase then F.(neg one) else F.one in
