@@ -31,5 +31,5 @@ Executable "simplex"
   Path: src
   MainIs: main.ml
   CompiledObject: best
-  BuildDepends: zarith, num
+  BuildDepends: zarith, num, oasis
   BuildTools+: ocamllex, menhir

@@ -39,6 +39,7 @@ let set_bound var bound =
     Hashtbl.(join bound (find bounds var) |> replace bounds var)
   with
     Not_found -> Hashtbl.add bounds var bound
+
 %}
 
 %start main
