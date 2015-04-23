@@ -80,6 +80,33 @@ module Make(F:FIELD) = struct
       Conversion (conversion, dic)
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
+  let solution conv dic =
+    let vars = Array.make (Array.length dic.nonbasics) F.zero in
+    Array.iteri
+      (fun i v -> vars.(i) <- dic.rows.(i).const)
+      dic.basics;
+    let eval = function
+      | Unbounded (n1, n2) ->
+        F.(vars.(n1) - vars.(n2))
+      | Shift (n, x) ->
+        F.(vars.(n) - x)
+      | Swap_and_shift (n, x) ->
+        F.((neg vars.(n)) - x)
+      | Constant x ->
+        x in
+    let vals = Hashtbl.create (Hashtbl.length conv) in
+    Hashtbl.iter
+      (fun n c -> Hashtbl.add vals n (eval c))
+      conv;
+    vals
+
+  let print_sol chan vals =
+    let print_var (v, x) =
+      Printf.fprintf chan "%s = %a\n" v F.print x in
+    Hashtbl.fold (fun var x acc -> (var, x)::acc) vals []
+    |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
+    |> List.iter print_var
+
   let print_conv sorted chan conv =
     let open Printf in
     if sorted then

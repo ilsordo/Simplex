@@ -2,6 +2,7 @@ open Field
 open Lp
 open Dictionary
 open Simplex
+open Profile
 
 type action = Print
 
@@ -37,7 +38,13 @@ let parse_args fields =
 
   let speclist = Arg.align [
       ("-f",     Arg.String parse_field,
-       field_names^" Base Field")
+       field_names^" Base Field");
+      ("-d",     Arg.Set Profile.debug,
+      " Debug");
+      ("-s",     Arg.Set Profile.steps,
+      " Steps");
+      ("-p",     Arg.Set Profile.profile,
+      " Steps")
     ] in
 
   Arg.parse speclist parse_input use_msg;
@@ -49,6 +56,12 @@ let fields = [
   ("gmp",(module F_gmp : FIELD))
 ]
 
+let exit n =
+  print_stats stdout;
+  print_times stdout;
+  flush_all ();
+  exit n
+
 let main =
   let config = parse_args fields in
   let (module F : FIELD) = config.field in
@@ -57,6 +70,7 @@ let main =
   let module F_lp = Lp.Process(F) in
   let module F_dic = Dictionary.Make(F) in
   let module F_splx = Simplex.Make(F) in
+  time "Init";
   let lp = try F_parser.main Lexer.token lex
     with Failure s ->
       let lexeme = Lexing.lexeme lex in
@@ -65,26 +79,35 @@ let main =
       Printf.eprintf "Input error: (line %d, char %d) %s\n%s\n%!" pos.Lexing.pos_lnum col lexeme s;
       exit 1
   in
-  Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
-  match F_dic.make lp with
-  | exception Failure s ->
-    Printf.eprintf "Error : %s" s;
-    exit 1
-  | Invalid_constraint (var, x1, x2) ->
-    Printf.printf "Invalid constraint detected : %a <= %s <= %a\n"
-      F.print x1 var F.print x2
-  | Conversion (conv, dic) ->
-    Printf.printf "Conversion:\n%a\nDictionary:\n%a\n"
-      (F_dic.print_conv true) conv
-      F_dic.print dic;
-    match (F_splx.simplex dic) with
-    | Opt sol ->
-      Printf.printf "Optimal solution:\n%a\n"
-        F_dic.print sol
-    | Empty sol ->
-      Printf.printf "Empty domain:\n%a\n"
-        F_dic.print sol
-    | Unbounded (sol, n) ->
-      Printf.printf "Unbounded domain: %d\n%a\n"
-        n
-        F_dic.print sol
+  begin
+    time "Parsing";
+    if !steps then Printf.printf "Problem:\n%a\n" (F_lp.print true) lp;
+    match F_dic.make lp with
+    | exception Failure s ->
+      Printf.eprintf "Error : %s" s;
+      exit 1
+    | Invalid_constraint (var, x1, x2) ->
+      Printf.printf "Invalid constraint detected : %a <= %s <= %a\n"
+        F.print x1 var F.print x2;
+    | Conversion (conv, dic) ->
+      time "Conversion";
+      if !steps then Printf.printf "Conversion:\n%a\nDictionary:\n%a\n"
+          (F_dic.print_conv true) conv
+          F_dic.print dic;
+      match (F_splx.simplex dic) with
+      | Opt sol ->
+        Printf.printf "Optimal solution: %a\n%a\n"
+          F.print sol.coeffs.const
+          F_dic.print_sol (F_dic.solution conv sol)
+      | Empty sol ->
+        Printf.printf "Empty domain:\n%a\n"
+          F_dic.print sol
+      | Unbounded (sol, n) ->
+        Printf.printf "Unbounded domain: %d\n%a\n"
+          n
+          F_dic.print sol
+      | exception e ->
+        Printf.eprintf "Uncaught exception : %s\n" (Printexc.to_string e);
+        exit 1
+  end;
+  exit 0
