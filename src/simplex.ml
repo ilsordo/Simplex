@@ -47,7 +47,21 @@ module Make(F:FIELD) = struct
   (************* Simplex without first phase ****************)
 
   let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *)
-    array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body
+    let (_,pos,w) = 
+      Array.fold_left
+        (fun (pos,n_max,w_max) x ->
+          if F.(compare x w_max) > 0 then
+            (pos+1,pos,x)
+          else
+            (pos+1,n_max,w_max))
+        (0,0,F.zero) 
+    dict.coeffs.body in
+    if F.(compare w zero) = 0 then
+      Some pos
+    else
+      None
+
+    (*array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body*)
 
   let choose_leaving ent ?(first_phase = false) dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
     let fp = if first_phase then F.(neg one) else F.one in
@@ -96,7 +110,6 @@ module Make(F:FIELD) = struct
       | None -> Unbounded (dict, ent)
       | Some lea ->
         pivot ent lea dict;
-let module F_dic = Dictionary.Make(F) in Printf.printf "After pivot: \n%a" F_dic.print dict; (*** <------------------- *)
         pivots dict
 
 (************* Simplex with First phase ****************)
@@ -155,7 +168,6 @@ let module F_dic = Dictionary.Make(F) in Printf.printf "After pivot: \n%a" F_dic
       proj_dict
 
   let project coeffs_init basics_init nonbasics_init aux_var dict = 
-    let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
     match array_find (fun x -> x == aux_var) dict.nonbasics with
       | Some pivot_pos -> project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict
       | None -> dict (** strange: how to remove the auxiliary var ? *)
@@ -166,13 +178,11 @@ let module F_dic = Dictionary.Make(F) in Printf.printf "After pivot: \n%a" F_dic
     let nonbasics_init = Array.copy dict.nonbasics in (* save the nonbasics for later (projection of first phase) *)
     let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-    let module F_dic = Dictionary.Make(F) in Printf.printf "Auxiliary dic \n%a" F_dic.print dict; (*** <------------------- *)
     match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with (** ok ?*)
       | None -> assert false
       | Some lea ->
           begin
             pivot (Array.length dict.nonbasics - 1) lea dict; (* illegal pivot *)
-let module F_dic = Dictionary.Make(F) in Printf.printf "Illegal pivot: \n%a" F_dic.print dict; (*** <------------------- *)
             match pivots dict with
               | Opt dict | Unbounded (dict,_) ->
                   let dict_proj = project coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
