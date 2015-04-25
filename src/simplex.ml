@@ -181,7 +181,6 @@ module Make(F:FIELD) = struct
 
   let project coeffs_init basics_init nonbasics_init aux_var dict = 
    let module F_dic = Dictionary.Make(F) in Profile.dprintf "Before projection \n%a" F_dic.print dict; (*** <------------------- *) 
-   let module F_dic = Dictionary.Make(F) in Printf.printf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
     match array_find (fun x -> x == aux_var) dict.nonbasics with
       | Some pivot_pos -> project_basic pivot_pos coeffs_init basics_init nonbasics_init aux_var dict
       | None -> dict (** strange: how to remove the auxiliary var ? *)
