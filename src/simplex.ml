@@ -57,13 +57,13 @@ module Make(F:FIELD) = struct
             (pos+1,pos,x)
           else
             (pos+1,n_max,w_max))
-        (0,0,F.zero) 
+        (0,0,F.(neg one)) 
     dict.coeffs.body in
-    if F.(compare w zero) > 0 then
+    if F.(compare w zero) >= 0 then
       Some pos
     else
       None
-    (*array_find (fun x -> F.(compare x F.zero) > 0) dict.coeffs.body*)
+    (*array_find (fun x -> F.(compare x F.zero) >= 0) dict.coeffs.body*)
 
   let choose_leaving ent ?(first_phase = false) dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
     let fp = if first_phase then F.(neg one) else F.one in
