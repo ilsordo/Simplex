@@ -191,7 +191,7 @@ module Make(F:FIELD) = struct
     | None -> assert false
 
   let project coeffs_init basics_init nonbasics_init aux_var dict = 
-    Profile.dprintf "Before projection \n%a" F_dic.print dict; (*** <------------------- *)
+    Profile.dprintf "Before projection \n%a\n" F_dic.print dict; (*** <------------------- *)
     match array_find (fun x -> x == aux_var) dict.nonbasics with
       | Some _ -> project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
       | None -> project_basic coeffs_init basics_init nonbasics_init aux_var dict
@@ -203,7 +203,7 @@ module Make(F:FIELD) = struct
     let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
     Profile.dprintf "Auxiliary dic \n%a" F_dic.print dict;
-    match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with (** ok ?*)
+    match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with
     | None -> assert false
     | Some lea ->
       begin
@@ -211,9 +211,11 @@ module Make(F:FIELD) = struct
         Profile.dprintf "Illegal pivot: \n%a" F_dic.print dict;
         match pivots dict with
         | Opt dict | Unbounded (dict,_) ->
+          let empt = F.(compare dict.coeffs.const F.zero) <> 0 in
           let dict_proj = project coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+          Profile.dprintf "After projection \n%a\n" F_dic.print dict_proj; (*** <------------------- *)
           time "First phase";
-          if F.(compare dict.coeffs.const F.zero) <> 0 then
+          if empt then
             Empty dict_proj
           else
             pivots dict_proj
