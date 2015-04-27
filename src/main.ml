@@ -91,7 +91,7 @@ let main =
         F.print x1 var F.print x2;
     | Conversion (conv, dic) ->
       time "Conversion";
-      if !steps then Printf.printf "Conversion:\n%a\nDictionary:\n%a\n"
+      if !steps then Printf.printf "Conversion:\n%a\nInitial dictionary:\n%a\n"
           (F_dic.print_conv true) conv
           F_dic.print dic;
       match F_splx.simplex dic with
