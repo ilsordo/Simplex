@@ -49,8 +49,22 @@ module Make(F:FIELD) = struct
 
   (************* Simplex without first phase ****************)
 
-  let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *)
-    let (_,pos,w) = 
+  let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *) (* Bland's rule *)
+    let (_,pos) = 
+      Array.fold_left
+        (fun (pos,n_max) x ->
+          if F.(compare x zero) > 0 && (n_max = -1 || dict.nonbasics.(pos) >= dict.nonbasics.(n_max)) then
+            (pos+1,pos)
+          else
+            (pos+1,n_max))
+        (0,-1) 
+    dict.coeffs.body in
+    if pos <> -1 then
+      Some pos
+    else
+      None
+
+   (*     let (_,pos,w) = 
       Array.fold_left
         (fun (pos,n_max,w_max) x ->
           if F.(compare x w_max) > 0 then
@@ -62,8 +76,8 @@ module Make(F:FIELD) = struct
     if F.(compare w zero) >= 0 then
       Some pos
     else
-      None
-    (*array_find (fun x -> F.(compare x F.zero) >= 0) dict.coeffs.body*)
+      None*)
+   (* array_find (fun x -> F.(compare x F.zero) >= 0) dict.coeffs.body*)
 
   let choose_leaving ent ?(first_phase = false) dict = (* Some v if dict.nonbasics.(v) is the leaving variable, None if unbounded *)
     let fp = if first_phase then F.(neg one) else F.one in
@@ -81,6 +95,14 @@ module Make(F:FIELD) = struct
       Some max_var
     else
       None
+
+  let check_enter_zero dict = (* check if there exists an "entering" variable of coeff zero *) (****)
+    try
+      Array.iteri
+        (fun n x -> if F.(compare x F.zero) = 0 && choose_leaving n dict = None then raise (Found n))
+        dict.coeffs.body;
+      None
+    with Found n -> Some n
 
   let update_row ent lea_r r = (* row lea_r has been updated according to ent. now, update row r *)
     let coeff = r.body.(ent) in
@@ -108,12 +130,14 @@ module Make(F:FIELD) = struct
   let rec pivots dict = (* Pivots the dictionnary until being blocked *)
     match choose_entering dict with
     | None ->
-      time "Second phase";
-      Opt dict
+      begin
+        match check_enter_zero dict with
+        | None -> Opt dict
+        | Some ent -> Unbounded (dict, ent)
+      end
     | Some ent ->
       match choose_leaving ent dict with
       | None ->
-        time "Second phase";
         Unbounded (dict, ent)
       | Some lea ->
         pivot ent lea dict;
@@ -222,7 +246,9 @@ module Make(F:FIELD) = struct
           if empt then
             Empty dict_proj
           else
-            pivots dict_proj
+            let res = pivots dict_proj in
+            time "Second phase";
+            res
         | _ -> assert false
       end
 
@@ -236,6 +262,7 @@ module Make(F:FIELD) = struct
         first_phase dict
       | None -> 
         Profile.dprintf "No first phase needed\n\n";
-        pivots dict
-
+        let res = pivots dict in
+          time "Second phase";
+          res
 end
