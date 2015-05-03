@@ -5,7 +5,7 @@ open Profile
 type 'a t = Empty of 'a Dictionary.t | Unbounded of ('a Dictionary.t)*int | Opt of 'a Dictionary.t
 
 module Make(F:FIELD) = struct
-  
+
   module F_dic = Dictionary.Make(F)
 
   (************* Global functions ****************)
@@ -50,28 +50,28 @@ module Make(F:FIELD) = struct
   (************* Simplex without first phase ****************)
 
   let choose_entering dict = (* Some v if dict.nonbasics.(v) is the entering variable, None if no entering variable *) (* Bland's rule *)
-    let (_,pos) = 
+    let (_,pos) =
       Array.fold_left
         (fun (pos,n_max) x ->
           if F.(compare x zero) > 0 && (n_max = -1 || dict.nonbasics.(pos) >= dict.nonbasics.(n_max)) then
             (pos+1,pos)
           else
             (pos+1,n_max))
-        (0,-1) 
+        (0,-1)
     dict.coeffs.body in
     if pos <> -1 then
       Some pos
     else
       None
 
-   (*     let (_,pos,w) = 
+   (*     let (_,pos,w) =
       Array.fold_left
         (fun (pos,n_max,w_max) x ->
           if F.(compare x w_max) > 0 then
             (pos+1,pos,x)
           else
             (pos+1,n_max,w_max))
-        (0,0,F.(neg one)) 
+        (0,0,F.(neg one))
     dict.coeffs.body in
     if F.(compare w zero) >= 0 then
       Some pos
@@ -203,7 +203,7 @@ module Make(F:FIELD) = struct
         (fun n v -> project_var v coeffs_init.body.(n) places proj_dict ; n+1) 0 nonbasics_init in
       proj_dict
 
-  let project_basic coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is basic *)  
+  let project_basic coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is basic *)
     let pivot_pos = (* position of aux_var in dict.basics *)
       match array_find (fun x -> x == aux_var) dict.basics with
       | Some n -> n
@@ -214,13 +214,13 @@ module Make(F:FIELD) = struct
         project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
     | None -> assert false
 
-  let project coeffs_init basics_init nonbasics_init aux_var dict = 
+  let project coeffs_init basics_init nonbasics_init aux_var dict =
     Profile.dprintf "Before projection: \n%a\n" F_dic.print dict;
     match array_find (fun x -> x == aux_var) dict.nonbasics with
-      | Some _ -> 
+      | Some _ ->
           Profile.dprintf "Auxiliary variable is nonbasic\n\n";
           project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
-      | None -> 
+      | None ->
           Profile.dprintf "Auxiliary variable is basic\n\n";
           project_basic coeffs_init basics_init nonbasics_init aux_var dict
 
@@ -254,13 +254,13 @@ module Make(F:FIELD) = struct
 
   (************* Final function ****************)
 
-  let simplex dict = (* Apply the whole simplex *)
+  let simplex action dict = (* Apply the whole simplex *)
     Profile.time "_";
     match array_find (fun r -> F.(compare r.const F.zero) < 0) dict.rows with
       | Some i ->
         Profile.dprintf "Starting first phase because of line %d\n\n" i;
         first_phase dict
-      | None -> 
+      | None ->
         Profile.dprintf "No first phase needed\n\n";
         let res = pivots dict in
           time "Second phase";

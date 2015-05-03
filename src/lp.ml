@@ -12,22 +12,41 @@ type 'a t = { objective : 'a varmap * 'a (* Objective function with constant ter
 
 module Process (F:FIELD) = struct
 
-  let print sorted chan {objective; constraints; bounds} =
+  let eval values (vars, const) =
+    List.fold_left
+      (fun x (v, c) -> F.(x + c * (Hashtbl.find values v)))
+      const
+      vars
+
+  let check values {objective; constraints; bounds} =
+    let check_bound v b =
+      let x = Hashtbl.find values v in
+      match b with
+      | Unconstrained -> ()
+      | Inf a -> if not (F.compare x a >= 0) then assert false
+      | Sup a -> assert (F.compare x a <= 0)
+      | Both (a, b) -> assert (F.compare x a >= 0 && F.compare x b <= 0) in
+    List.iteri
+      (fun i c ->
+         if F.(compare (eval values c) zero) < 0 then
+           Printf.printf "Error : %d %a\n" i F.print (eval values c)
+      )
+      constraints;
+    Hashtbl.iter check_bound bounds;
+    eval values objective
+
+  let print chan {objective; constraints; bounds} =
     let print_bound chan = function
-      | Inf x -> fprintf chan "[%a, +inf]" F.print x
-      | Sup x -> fprintf chan "[-inf, %a]" F.print x
+      | Inf x -> fprintf chan "[%a, +\\infty]" F.print x
+      | Sup x -> fprintf chan "[-\\infty, %a]" F.print x
       | Both (x,y) -> fprintf chan "[%a, %a]" F.print x F.print y
-      | Unconstrained -> fprintf chan "[-inf, +inf]" in
+      | Unconstrained -> fprintf chan "[-\\infty, +\\infty]" in
     let print_bounds chan bounds =
       fprintf chan "Bounds:\n";
-      if sorted then
-        Hashtbl.fold (fun var bound acc -> (var, bound)::acc) bounds []
-        |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
-        |> List.iter (fun (var, bound) -> fprintf chan "%s : %a\n" var print_bound bound)
-      else
-        Hashtbl.iter
-          (fun var bound -> fprintf chan "%s : %a\n" var print_bound bound)
-          bounds in
+      Hashtbl.fold (fun var bound acc -> (var, bound)::acc) bounds []
+      |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
+      |> List.iter (fun (var, bound) -> fprintf chan "&$%s : %a$\\\\\n" var print_bound bound)
+    in
     let rec print_lc_aux chan = function
       | [] -> ()
       | [(var, coeff)] ->
@@ -50,9 +69,9 @@ module Process (F:FIELD) = struct
     let rec print_constraints chan = function
       | [] -> ()
       | lc::t ->
-        fprintf chan "%a >= 0\n" print_lc lc;
+        fprintf chan "&$%a >= 0$\\\n" print_lc lc;
         print_constraints chan t in
-    fprintf chan "Maximize\n%a\n\nSubject to:\n%a\n%a\n%!"
+    fprintf chan "\begin{tabular}{rl}\nMaximize&%a\\\\\nSubject to:&\\\\\n%a\n%a\n\\end{tabular}"
       print_lc objective
       print_constraints constraints
       print_bounds bounds

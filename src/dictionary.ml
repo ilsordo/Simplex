@@ -103,28 +103,12 @@ module Make(F:FIELD) = struct
       conv;
     vals
 
-  let check_sol vals {objective; constraints; bounds} =
-    let eval (vars, const) =
-      List.fold_left
-        (fun x (v, c) -> F.(x + c * (Hashtbl.find vals v)))
-        const
-        vars in
-    let check_bound v b =
-      let x = Hashtbl.find vals v in
-      match b with
-      | Unconstrained -> ()
-      | Inf a -> assert (F.compare x a >= 0)
-      | Sup a -> assert (F.compare x a <= 0)
-      | Both (a, b) -> assert (F.compare x a >= 0 && F.compare x b <= 0) in
-    List.iteri
-      (fun i c ->
-           if F.(compare (eval c) zero) < 0 then
-             Printf.printf "Error : %d %a\n" i F.print (eval c)
-      )
-      constraints;
-    Hashtbl.iter check_bound bounds;
-    eval objective
-
+  let print_sol_tex chan vals =
+    let print_var (v, x) =
+      Printf.fprintf chan "$%s = %a$\\\\" v F.print x in
+    Hashtbl.fold (fun var x acc -> (var, x)::acc) vals []
+    |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
+    |> List.iter print_var
 
   let print_sol chan vals =
     let print_var (v, x) =
@@ -133,25 +117,41 @@ module Make(F:FIELD) = struct
     |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
     |> List.iter print_var
 
-  let print_conv sorted chan conv =
-    let open Printf in
-    if sorted then
-      let print_var = function
-        | v, Unbounded (n1, n2) -> fprintf chan "%s => x_%d - x_%d\n" v n1 n2
-        | v, Shift (n, x) -> fprintf chan "%s => x_%d - %a\n" v n F.print x
-        | v, Swap_and_shift (n, x) -> fprintf chan "%s => -x_%d + %a\n" v n F.print x
-        | v, Constant x -> fprintf chan "%s => %a\n" v F.print x in
-      Hashtbl.fold (fun var conv acc -> (var, conv)::acc) conv []
-      |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
-      |> List.iter print_var
-    else
-      let print_var v = function
-        | Unbounded (n1, n2) -> fprintf chan "%s => x_%d- x_%d\n" v n1 n2
-        | Shift (n, x) -> fprintf chan "%s => x_%d- %a\n" v n F.print x
-        | Swap_and_shift (n, x) -> fprintf chan "%s => -x_%d+ %a\n" v n F.print x
-        | Constant x -> fprintf chan "%s => %a\n" v F.print x in
-      Hashtbl.iter print_var conv
 
+  let print_conv chan conv =
+    let open Printf in
+    let print_var = function
+      | v, Unbounded (n1, n2) -> fprintf chan "$%s \\Rightarrow x_%d - x_%d$\\\\" v n1 n2
+      | v, Shift (n, x) -> fprintf chan "$%s \\Rightarrow x_%d - %a$\\\\" v n F.print x
+      | v, Swap_and_shift (n, x) -> fprintf chan "$%s \\Rightarrow -x_%d + %a$\\\\" v n F.print x
+      | v, Constant x -> fprintf chan "$%s \\Rightarrow %a$\\\\" v F.print x in
+    Hashtbl.fold (fun var conv acc -> (var, conv)::acc) conv []
+    |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
+    |> List.iter print_var
+
+  let print chan {nonbasics; basics; coeffs; rows} =
+    let open Printf in
+    let numvars = Array.length nonbasics in
+    let varname i =
+      if i < numvars then
+        sprintf "x_%d" i
+      else
+        sprintf "y_%d" (i-numvars) in
+    let print_lc chan {body; const} =
+      Array.iter (fun c -> fprintf chan "& $%a$" F.print c) body;
+      fprintf chan "& $%a$\\\\" F.print const in
+    fprintf chan "\\begin{tabular}{|r|%s|}\\hline Maximize %a\\hline Subject to &"
+      (String.make (1 + Array.length nonbasics) 'c')
+      print_lc coeffs;
+    Array.iter (fun v -> fprintf chan "$%s$ &" (varname v)) nonbasics;
+    fprintf chan "Const \\\\";
+    for i = 0 to Array.length basics - 1 do
+      fprintf chan "\\hline $%s$ %a"
+        (varname basics.(i))
+        print_lc rows.(i)
+    done;
+    fprintf chan "\\hline\\end{tabular}"
+(*
   let print chan ({nonbasics; basics; coeffs; rows} as dic) =
     let open Printf in
     let numvars = Array.length dic.nonbasics in
@@ -179,9 +179,9 @@ module Make(F:FIELD) = struct
     let print_lc h body const =
       fprintf chan "%s" (pad_to lwidth h);
       Array.iteri (fun i w -> fprintf chan "%s |" (pad_to w body.(i))) colwidth;
-      fprintf chan "%s\n" (pad_to rwidth const) in
+      fprintf chan "%s\\\\" (pad_to rwidth const) in
     print_lc (mx^"  ") coeff_names const_name;
     print_lc (st^"  ") varnames cst;
     Array.iteri (fun i n -> print_lc (n^" |") body_names.(i) consts_names.(i)) rownames
-
+*)
 end
