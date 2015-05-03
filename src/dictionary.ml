@@ -47,7 +47,7 @@ module Make(F:FIELD) = struct
           | k when k>0 -> raise (Impossible (var, x, y))
           | _ ->
             let const = F.([var,neg one],y) in (* var <= y *)
-            Hashtbl.add conversion var (Shift (n, x)); (n, const::consts)
+            Hashtbl.add conversion var (Shift (n, x)); (n+1, const::consts)
       in
       let (n_vars, consts) = Hashtbl.fold process_bounds bounds (0, constraints) in
       let n_consts = List.length constraints in
@@ -122,20 +122,20 @@ module Make(F:FIELD) = struct
       | Some n ->
         if i = n then "X"
         else if i < numvars - 1 then
-          Printf.sprintf "x_%d" i
+          Printf.sprintf "x_{%d}" i
         else
-          Printf.sprintf "y_%d" (1+ i-numvars)
+          Printf.sprintf "y_{%d}" (1+ i-numvars)
       | None -> if i < numvars then
-          Printf.sprintf "x_%d" i
+          Printf.sprintf "x_{%d}" i
         else
-          Printf.sprintf "y_%d" (i-numvars)
+          Printf.sprintf "y_{%d}" (i-numvars)
 
   let print_conv chan conv =
     let open Printf in
     let print_var = function
-      | v, Unbounded (n1, n2) -> fprintf chan "$%s \\Rightarrow x_%d - x_%d$\\\\" v n1 n2
-      | v, Shift (n, x) -> fprintf chan "$%s \\Rightarrow x_%d - %a$\\\\" v n F.print x
-      | v, Swap_and_shift (n, x) -> fprintf chan "$%s \\Rightarrow -x_%d + %a$\\\\" v n F.print x
+      | v, Unbounded (n1, n2) -> fprintf chan "$%s \\Rightarrow x_{%d} - x_{%d}$\\\\" v n1 n2
+      | v, Shift (n, x) -> fprintf chan "$%s \\Rightarrow x_{%d} - %a$\\\\" v n F.print x
+      | v, Swap_and_shift (n, x) -> fprintf chan "$%s \\Rightarrow -x_{%d} + %a$\\\\" v n F.print x
       | v, Constant x -> fprintf chan "$%s \\Rightarrow %a$\\\\" v F.print x in
     Hashtbl.fold (fun var conv acc -> (var, conv)::acc) conv []
     |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)

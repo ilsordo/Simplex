@@ -52,7 +52,7 @@ let main =
     time "Conversion";
     aprintf config.action "\\section{Problem} %a"
       F_lp.print lp;
-    aprintf config.action "\\section{Initalization}\\subsection*{Conversion:}%a\\subsection*{Initial dictionary:}%a"
+    aprintf config.action "\\section{Initialization}\\subsection*{Conversion:}%a\\subsection*{Initial dictionary:}%a"
       F_dic.print_conv conv
       (F_dic.print ()) dic;
     match F_splx.simplex config.action dic with
@@ -76,8 +76,13 @@ let main =
       end;
       exit 0
     | Empty sol ->
-      Printf.printf "Empty domain:\n%a\n"
-        (F_dic.print()) sol;
+      begin match config.action with
+        | Explain (c, _) ->
+          Printf.fprintf c "\\section{Solution}Empty domain:\\\\%a"
+            (F_dic.print ()) sol
+        | Solve ->
+          Printf.printf "Empty domain\n"
+      end;
       exit 0
     | Unbounded (sol, n) ->
       Printf.printf "Unbounded domain: %d\n%a\n"

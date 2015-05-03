@@ -234,7 +234,7 @@ module Make(F:FIELD) = struct
     let nonbasics_init = Array.copy dict.nonbasics in (* save the nonbasics for later (projection of first phase) *)
     let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-    aprintf action "New dictionary: %a" (F_dic.print ~special:aux_var ()) dict;
+    aprintf action "New dictionary: \\\\%a" (F_dic.print ~special:aux_var ()) dict;
     match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with
     | None -> assert false
     | Some lea ->
@@ -244,7 +244,7 @@ module Make(F:FIELD) = struct
         | Opt dict | Unbounded (dict,_) ->
           let empt = F.(compare dict.coeffs.const F.zero) <> 0 in
           let dict_proj = project action coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-          aprintf action "After projection: %a" (F_dic.print ()) dict_proj;
+          aprintf action "\\subsection*{Projection:} %a" (F_dic.print ()) dict_proj;
           time "First phase";
           if empt then
             Empty dict_proj

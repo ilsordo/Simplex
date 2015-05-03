@@ -116,5 +116,9 @@ variables:
 ;
 
 num:
-  NUM                          { match F.of_string $1 with
-        Some x -> x | None -> raise (Failure( "Unable to parse number : "^$1))}
+  NUM
+    { match F.of_string $1 with
+      | Some x -> x
+      | None ->
+        raise (Failure( "Unable to parse number : "^$1))
+    }
