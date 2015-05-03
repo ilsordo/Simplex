@@ -69,9 +69,9 @@ module Process (F:FIELD) = struct
     let rec print_constraints chan = function
       | [] -> ()
       | lc::t ->
-        fprintf chan "&$%a >= 0$\\\n" print_lc lc;
+        fprintf chan "&$%a >= 0$\\\\" print_lc lc;
         print_constraints chan t in
-    fprintf chan "\begin{tabular}{rl}\nMaximize&%a\\\\\nSubject to:&\\\\\n%a\n%a\n\\end{tabular}"
+    fprintf chan "\\begin{tabular}{rl}Maximize:&%a\\\\ Subject to:&\\\\ %a %a \\end{tabular}"
       print_lc objective
       print_constraints constraints
       print_bounds bounds

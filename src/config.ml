@@ -4,6 +4,11 @@ open Profile
 type action = Solve
             | Explain of out_channel * (unit -> unit)
 
+let aprintf action x =
+  match action with
+  | Explain (c, _) -> Printf.fprintf c x
+  | Solve -> Printf.ifprintf stdout x
+
 type config =
   { mutable input : in_channel
   ; mutable field : (module FIELD)
@@ -35,10 +40,10 @@ let parse_args fields =
         try
           Printf.fprintf out "\\end{document}\n%!";
           close_out out;
-          Unix.chdir dir;
-          let command = Printf.sprintf "pdflatex %s.tex && mv %s.pdf %s/%s.pdf"
-              s s old_dir s in
-          ignore (Unix.system command);
+          let command = Printf.sprintf "cd %s && pdflatex -interaction=batchmode %s.tex && mv %s.pdf %s/%s.pdf"
+              dir s s old_dir s in
+          Printf.printf "Commande : %s\n%!" command;
+          ignore (Unix.system command)
         with _ -> Printf.eprintf "Error while producing latex output\n%!"; exit 1
       in
       default.action <- Explain (out, finalize)

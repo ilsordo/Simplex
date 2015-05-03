@@ -117,6 +117,18 @@ module Make(F:FIELD) = struct
     |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
     |> List.iter print_var
 
+  let varname ?special numvars i =
+      match special with
+      | Some n ->
+        if i = n then "X"
+        else if i < numvars - 1 then
+          Printf.sprintf "x_%d" i
+        else
+          Printf.sprintf "y_%d" (1+ i-numvars)
+      | None -> if i < numvars then
+          Printf.sprintf "x_%d" i
+        else
+          Printf.sprintf "y_%d" (i-numvars)
 
   let print_conv chan conv =
     let open Printf in
@@ -129,25 +141,20 @@ module Make(F:FIELD) = struct
     |> List.sort (fun (v1, _) (v2, _) -> String.compare v1 v2)
     |> List.iter print_var
 
-  let print chan {nonbasics; basics; coeffs; rows} =
+  let print ?special () chan {nonbasics; basics; coeffs; rows} =
     let open Printf in
     let numvars = Array.length nonbasics in
-    let varname i =
-      if i < numvars then
-        sprintf "x_%d" i
-      else
-        sprintf "y_%d" (i-numvars) in
     let print_lc chan {body; const} =
       Array.iter (fun c -> fprintf chan "& $%a$" F.print c) body;
       fprintf chan "& $%a$\\\\" F.print const in
     fprintf chan "\\begin{tabular}{|r|%s|}\\hline Maximize %a\\hline Subject to &"
       (String.make (1 + Array.length nonbasics) 'c')
       print_lc coeffs;
-    Array.iter (fun v -> fprintf chan "$%s$ &" (varname v)) nonbasics;
+    Array.iter (fun v -> fprintf chan "$%s$ &" (varname ?special numvars v)) nonbasics;
     fprintf chan "Const \\\\";
     for i = 0 to Array.length basics - 1 do
       fprintf chan "\\hline $%s$ %a"
-        (varname basics.(i))
+        (varname ?special numvars basics.(i))
         print_lc rows.(i)
     done;
     fprintf chan "\\hline\\end{tabular}"

@@ -1,6 +1,7 @@
 open Field
 open Dictionary
 open Profile
+open Config
 
 type 'a t = Empty of 'a Dictionary.t | Unbounded of ('a Dictionary.t)*int | Opt of 'a Dictionary.t
 
@@ -115,7 +116,8 @@ module Make(F:FIELD) = struct
     iter_except lea (fun r -> update_row ent lea_r r) dict.rows;
     update_row ent lea_r dict.coeffs
 
-  let pivot ent lea dict = (* Pivot colum ent and row lea *)
+  let pivot ?special action ent lea dict = (* Pivot colum ent and row lea *)
+    let numvars = Array.length dict.nonbasics in
     Profile.register "Pivots";
     let ent_var = dict.nonbasics.(ent) in (* name of the entering variable *)
     let piv_row = dict.rows.(lea) in (* row to be pivot *)
@@ -125,9 +127,13 @@ module Make(F:FIELD) = struct
     piv_row.body.(ent) <- F.(neg one);
     piv_row.const <- F.(piv_row.const / (neg coeff));
     Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body;
-    update_dict ent lea dict (* update the other rows + the objective *)
+    update_dict ent lea dict; (* update the other rows + the objective *)
+    aprintf action "\\subsubsection*{Pivot}Entering $%s$, leaving $%s$ gives %a"
+      (F_dic.varname ?special numvars ent)
+      (F_dic.varname ?special numvars lea)
+      (F_dic.print ?special ()) dict
 
-  let rec pivots dict = (* Pivots the dictionnary until being blocked *)
+  let rec pivots ?special action dict = (* Pivots the dictionnary until being blocked *)
     match choose_entering dict with
     | None ->
       begin
@@ -140,9 +146,8 @@ module Make(F:FIELD) = struct
       | None ->
         Unbounded (dict, ent)
       | Some lea ->
-        pivot ent lea dict;
-        Profile.dprintf "After pivoting %d to %d:\n%a\n" ent lea F_dic.print dict;
-        pivots dict
+        pivot ?special action ent lea dict;
+        pivots ?special action dict
 
   (************* Simplex with First phase ****************)
 
@@ -203,50 +208,48 @@ module Make(F:FIELD) = struct
         (fun n v -> project_var v coeffs_init.body.(n) places proj_dict ; n+1) 0 nonbasics_init in
       proj_dict
 
-  let project_basic coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is basic *)
+  let project_basic action coeffs_init basics_init nonbasics_init aux_var dict = (* project the dictionary when the auxiliary variable is basic *)
     let pivot_pos = (* position of aux_var in dict.basics *)
       match array_find (fun x -> x == aux_var) dict.basics with
       | Some n -> n
       | None -> assert false in (* aux_var is supposed to be a basic variable *)
-  match array_find (fun x -> x <> F.zero) dict.rows.(pivot_pos).body with
+    match array_find (fun x -> x <> F.zero) dict.rows.(pivot_pos).body with
     | Some ent ->
-        pivot ent pivot_pos dict;
-        project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
+      pivot ~special:aux_var action ent pivot_pos dict;
+      project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
     | None -> assert false
 
-  let project coeffs_init basics_init nonbasics_init aux_var dict =
-    Profile.dprintf "Before projection: \n%a\n" F_dic.print dict;
+  let project action coeffs_init basics_init nonbasics_init aux_var dict =
     match array_find (fun x -> x == aux_var) dict.nonbasics with
-      | Some _ ->
-          Profile.dprintf "Auxiliary variable is nonbasic\n\n";
-          project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
-      | None ->
-          Profile.dprintf "Auxiliary variable is basic\n\n";
-          project_basic coeffs_init basics_init nonbasics_init aux_var dict
+    | Some _ ->
+      Profile.dprintf "Auxiliary variable is nonbasic\n\n";
+      project_nonbasic coeffs_init basics_init nonbasics_init aux_var dict
+    | None ->
+      Profile.dprintf "Auxiliary variable is basic\n\n";
+      project_basic action coeffs_init basics_init nonbasics_init aux_var dict
 
-  let first_phase dict = (* Simplex when first phase needed *)
+  let first_phase action dict = (* Simplex when first phase needed *)
     let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
     let basics_init = Array.copy dict.basics in (* save the basics for later (projection of first phase) *)
     let nonbasics_init = Array.copy dict.nonbasics in (* save the nonbasics for later (projection of first phase) *)
     let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
-    Profile.dprintf "Auxiliary dictionary (beginning of first phase): \n%a\n" F_dic.print dict;
+    aprintf action "New dictionary: %a" (F_dic.print ~special:aux_var ()) dict;
     match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with
     | None -> assert false
     | Some lea ->
       begin
-        pivot (Array.length dict.nonbasics - 1) lea dict; (* illegal pivot *)
-        Profile.dprintf "After illegal pivot: \n%a\n" F_dic.print dict;
-        match pivots dict with
+        pivot ~special:aux_var action (Array.length dict.nonbasics - 1) lea dict; (* illegal pivot *)
+        match pivots ~special:aux_var action dict with
         | Opt dict | Unbounded (dict,_) ->
           let empt = F.(compare dict.coeffs.const F.zero) <> 0 in
-          let dict_proj = project coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
-          Profile.dprintf "After projection (end of first phase): \n%a\n" F_dic.print dict_proj;
+          let dict_proj = project action coeffs_init basics_init nonbasics_init aux_var dict in (* projection of the dictionary, remove the auxiliary variable *)
+          aprintf action "After projection: %a" (F_dic.print ()) dict_proj;
           time "First phase";
           if empt then
             Empty dict_proj
           else
-            let res = pivots dict_proj in
+            let res = pivots action dict_proj in
             time "Second phase";
             res
         | _ -> assert false
@@ -256,13 +259,15 @@ module Make(F:FIELD) = struct
 
   let simplex action dict = (* Apply the whole simplex *)
     Profile.time "_";
+    aprintf action "\\section{Simplex}";
     match array_find (fun r -> F.(compare r.const F.zero) < 0) dict.rows with
       | Some i ->
         Profile.dprintf "Starting first phase because of line %d\n\n" i;
-        first_phase dict
+        aprintf action "\\subsection*{First phase}Cause : line $%d$\\\\" i;
+        first_phase action dict
       | None ->
         Profile.dprintf "No first phase needed\n\n";
-        let res = pivots dict in
+        let res = pivots action dict in
           time "Second phase";
           res
 end
