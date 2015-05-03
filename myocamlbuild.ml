@@ -633,6 +633,7 @@ let my_dispatch e =
     flag ["ocaml"; "parser"; "menhir"; "file:src/tokens.mly" ] (A"--only-tokens");
     flag ["ocaml"; "menhir_ocamldep"; "file:src/parser.mly"] parserFlags;
     flag ["ocaml"; "parser"; "menhir"; "file:src/parser.mly" ] parserFlags;
+    flag ["ocaml"; "compile"] (A"-g")
   | _ -> ();;
 
 Ocamlbuild_plugin.dispatch my_dispatch;;

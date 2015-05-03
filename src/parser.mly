@@ -40,6 +40,18 @@ let set_bound var bound =
   with
     Not_found -> Hashtbl.add bounds var bound
 
+let rec reduce = function
+  | [] -> []
+  | (lc, const)::r ->
+    match List.filter (fun (v, c) -> F.(compare c zero) <> 0) lc with
+    | [(v, c)] ->
+      if F.(compare c zero) > 0 then
+        set_bound v (Lp.Inf(F.(neg const / c)))
+      else
+        set_bound v (Lp.Sup(F.(neg const / c)));
+      reduce r
+    | [] when F.(compare const zero) >= 0 -> reduce r
+    | l -> (l, const)::(reduce r)
 %}
 
 %start main
@@ -52,9 +64,9 @@ main:
 
 program:
   | MAX lc ST constraints BOUNDS bounds VARS variables
-    { Lp.{ objective = $2; constraints = $4; bounds = bounds } }
+    { Lp.{ objective = $2; constraints = reduce $4; bounds = bounds } }
   | MIN lc ST constraints BOUNDS bounds VARS variables
-    { Lp.{ objective = neg_lc $2; constraints = $4; bounds = bounds } }
+    { Lp.{ objective = neg_lc $2; constraints = reduce $4; bounds = bounds } }
   | error                      { raise (Failure "program") }
 ;
 

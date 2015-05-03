@@ -128,7 +128,7 @@ module Make(F:FIELD) = struct
     piv_row.const <- F.(piv_row.const / (neg coeff));
     Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body;
     update_dict ent lea dict; (* update the other rows + the objective *)
-    aprintf action "\\subsubsection*{Pivot}Entering $%s$, leaving $%s$ gives %a"
+    aprintf action "\\subsubsection*{Pivot}Entering $%s$, leaving $%s$ gives \\\\%a"
       (F_dic.varname ?special numvars ent)
       (F_dic.varname ?special numvars lea)
       (F_dic.print ?special ()) dict

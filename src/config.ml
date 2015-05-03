@@ -40,7 +40,7 @@ let parse_args fields =
         try
           Printf.fprintf out "\\end{document}\n%!";
           close_out out;
-          let command = Printf.sprintf "cd %s && pdflatex -interaction=batchmode %s.tex && mv %s.pdf %s/%s.pdf"
+          let command = Printf.sprintf "cd %s && pdflatex -interaction=batchmode %s.tex > /dev/null && mv %s.pdf %s/%s.pdf"
               dir s s old_dir s in
           Printf.printf "Commande : %s\n%!" command;
           ignore (Unix.system command)
