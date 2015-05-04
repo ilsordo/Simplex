@@ -7,10 +7,10 @@ https://github.com/nagaaym/Simplex
 
 ******************************************************************************
 
-1. Dependences
+1. Dependencies
 2. Compile and run
 3. Produce a PDF file
-4. Options
+4. Features
 
 ******************************************************************************
 
@@ -18,7 +18,7 @@ https://github.com/nagaaym/Simplex
 1. Dependencies
 ===============
 
-The solver depends on ocaml >= 4.01.0, findlib, oasis, menhir and zarith.
+The solver depends on ocaml >= 4.02.1, findlib, oasis, menhir and zarith.
 
 The easiest way to install them is to use [opam](https://opam.ocaml.org/) and do
 ```
