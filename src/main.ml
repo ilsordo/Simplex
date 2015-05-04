@@ -87,9 +87,17 @@ let main =
       end;
       exit 0
     | Unbounded (sol, n) ->
-      Printf.printf "Unbounded domain: %d\n%a\n"
-        n
-        (F_dic.print ()) sol;
+      let s = F_dic.solution conv sol in
+      begin match config.action with
+        | Explain (c, _) ->
+          Printf.fprintf c "\\section{Solution}Unbounded domain: $%a$\\\\%a"
+            F.print sol.coeffs.const
+            F_dic.print_sol_tex s
+        | Solve ->
+          Printf.printf "Unbounded domain: %d\n%a\n"
+            n
+            F_dic.print_sol s
+      end;
       exit 0
     | exception e ->
       Printf.eprintf "Uncaught exception : %s\n" (Printexc.to_string e);
