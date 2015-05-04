@@ -81,10 +81,8 @@ module Make(F:FIELD) = struct
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
   let dual {nonbasics; basics; coeffs; rows} =
-    Printf.eprintf "%d %d%!" (Array.length basics) (Array.length rows);
     assert(Array.length nonbasics = Array.length coeffs.body);
     assert(Array.length basics = Array.length rows);
-
     let new_coeffs = Array.map (fun {const; _} -> F.neg const) rows in
     let num_rows = Array.length nonbasics in
     let row_size = Array.length basics in
