@@ -120,6 +120,7 @@ module Make(F:FIELD) = struct
     let numvars = Array.length dict.nonbasics in
     Profile.register "Pivots";
     let ent_var = dict.nonbasics.(ent) in (* name of the entering variable *)
+    let lea_var = dict.basics.(lea) in
     let piv_row = dict.rows.(lea) in (* row to be pivot *)
     let coeff = piv_row.body.(ent) in (* coeff of the entering variable into piv_row *)
     dict.nonbasics.(ent) <- dict.basics.(lea);
@@ -129,8 +130,8 @@ module Make(F:FIELD) = struct
     Array.iteri (fun i x -> piv_row.body.(i) <- F.(x / (neg coeff))) piv_row.body;
     update_dict ent lea dict; (* update the other rows + the objective *)
     aprintf action "\\subsubsection*{Pivot}Entering $%s$, leaving $%s$ gives \\\\%a"
-      (F_dic.varname ?special numvars ent)
-      (F_dic.varname ?special numvars (lea+numvars))
+      (F_dic.varname ?special numvars ent_var)
+      (F_dic.varname ?special numvars lea_var)
       (F_dic.print ?special ()) dict
 
   let rec pivots ?special action dict = (* Pivots the dictionnary until being blocked *)
@@ -232,7 +233,7 @@ module Make(F:FIELD) = struct
     let coeffs_init = {body = Array.copy dict.coeffs.body ; const = dict.coeffs.const } in (* save the coeffs for later (projection of first phase) *)
     let basics_init = Array.copy dict.basics in (* save the basics for later (projection of first phase) *)
     let nonbasics_init = Array.copy dict.nonbasics in (* save the nonbasics for later (projection of first phase) *)
-    let aux_var = Array.length dict.rows + Array.length dict.nonbasics + 1 in (* name of the auxiliary variable to add *)
+    let aux_var = Array.length dict.rows + Array.length dict.nonbasics in (* name of the auxiliary variable to add *)
     let dict = auxiliary_dict aux_var dict in (* add the auxiliary variable into the dictionary *)
     aprintf action "New dictionary: \\\\%a" (F_dic.print ~special:aux_var ()) dict;
     match choose_leaving (Array.length dict.nonbasics - 1) ~first_phase:true dict with
