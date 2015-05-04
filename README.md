@@ -22,12 +22,17 @@ The solver depends on ocaml >= 4.02.1, findlib, oasis, menhir and zarith.
 It should be noted that zarith depends on libgmp.
 
 You first need to install the following programs:
-  - sudo apt-get install m4
-  - sudo apt-get install libgmp-dev
-  - sudo apt-get install opam
-  - Be sure to use the version 4.02.1 of opam, otherwise switch: 
-   * opam switch 4.02.1
-   * eval `opam config env`
+```
+  sudo apt-get install m4
+  sudo apt-get install libgmp-dev
+  sudo apt-get install opam
+```
+
+Be sure to use the version 4.02.1 of opam, otherwise switch: 
+``` 
+  opam switch 4.02.1
+  eval `opam config env`
+```
 
 Then you can install the packages using [opam](https://opam.ocaml.org/):
 ```
