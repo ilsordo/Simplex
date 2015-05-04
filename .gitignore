@@ -2,7 +2,6 @@ simplex
 
 _build/
 *.native
-*.byte
 
 setup.log
 setup.data

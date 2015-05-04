@@ -42,7 +42,7 @@ configure:
 
 # OASIS_STOP
 simplex : build
-	ln -fs main.native $(EXEC)
+	ln -fs main.native $(EXEC);
 
 .DEFAULT_GOAL := simplex
 
