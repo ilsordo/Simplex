@@ -18,6 +18,16 @@ https://github.com/nagaaym/Simplex
 1. Dependences
 ==============
 
+You need to install the following programs:
+  - sudo apt-get install m4
+  - sudo apt-get install libgmp-dev
+  - sudo apt-get install opam
+  - Be sure to use the version 4.02.1 of opam, otherwise switch: 
+   * opam switch 4.02.1
+   * eval `opam config env`
+  - opam install oasis
+  - opam install menhir
+  - opam install zarith
 
 2. Compile and run
 ==================
