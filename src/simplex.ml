@@ -130,7 +130,7 @@ module Make(F:FIELD) = struct
     update_dict ent lea dict; (* update the other rows + the objective *)
     aprintf action "\\subsubsection*{Pivot}Entering $%s$, leaving $%s$ gives \\\\%a"
       (F_dic.varname ?special numvars ent)
-      (F_dic.varname ?special numvars lea)
+      (F_dic.varname ?special numvars (lea+numvars))
       (F_dic.print ?special ()) dict
 
   let rec pivots ?special action dict = (* Pivots the dictionnary until being blocked *)

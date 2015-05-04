@@ -132,7 +132,7 @@ module Make(F:FIELD) = struct
     |> List.iter print_var
 
   let varname ?special numvars i =
-      match special with
+    match special with
       | Some n ->
         if i = n then "X"
         else if i < numvars - 1 then
