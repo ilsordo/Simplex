@@ -37,6 +37,10 @@ You can produce a PDF file describing the execution of the simplex. To print it 
 
   -print record.pdf
 
+This file contains:
+  - the different steps of the algorithm (dictionaries, entering/leaving variables)
+  - the dual
+  - the solution
   
 4. Other options
 ================
