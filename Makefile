@@ -43,7 +43,6 @@ configure:
 # OASIS_STOP
 simplex : build
 	ln -fs main.native $(EXEC);
-	cp -f main.byte $(EXEC).byte
 
 .DEFAULT_GOAL := simplex
 
