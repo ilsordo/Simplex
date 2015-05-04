@@ -1,5 +1,5 @@
 MAXIMIZE
-0
+1.2 + 1/2
 SUBJECT TO
 2 n >= 3
 - 3 o >= -2

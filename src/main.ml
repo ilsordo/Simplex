@@ -50,11 +50,13 @@ let main =
       exit 1
   | Conversion (conv, dic) ->
     time "Conversion";
+    let dual = F_dic.dual dic in
     aprintf config.action "\\section{Problem} %a"
       F_lp.print lp;
-    aprintf config.action "\\section{Initialization}\\subsection*{Conversion:}%a\\subsection*{Initial dictionary:}%a"
+    aprintf config.action "\\section{Initialization}\\subsection*{Conversion:}%a\\subsection*{Initial dictionary:}%a\\subsection*{Dual:}%a"
       F_dic.print_conv conv
-      (F_dic.print ()) dic;
+      (F_dic.print ()) dic
+      (F_dic.print ()) dual;
     match F_splx.simplex config.action dic with
     | Opt sol ->
       let s = F_dic.solution conv sol in

@@ -80,6 +80,20 @@ module Make(F:FIELD) = struct
       Conversion (conversion, dic)
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
+  let dual {nonbasics; basics; coeffs; rows} =
+    let new_coeffs = Array.map (fun {const; _} -> F.neg const) rows in
+    let row_size = Array.length rows in
+    let new_rows = Array.mapi
+        (fun i const ->
+           let body = Array.init row_size (fun j -> F.neg rows.(j).body.(i)) in
+           {const = F.neg const; body})
+        coeffs.body in
+    { nonbasics = Array.copy basics
+    ; basics = Array.copy nonbasics
+    ; coeffs = {coeffs with body = new_coeffs}
+    ; rows = new_rows
+    }
+
   let solution conv dic =
     let numvars = Array.length dic.nonbasics in
     let vars = Array.make numvars F.zero in

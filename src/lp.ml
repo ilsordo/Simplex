@@ -35,9 +35,6 @@ module Process (F:FIELD) = struct
     Hashtbl.iter check_bound bounds;
     eval values objective
 
-  let dualize {objective; constraints; bounds} =
-    ()
-
   let print chan {objective; constraints; bounds} =
     let print_bound chan = function
       | Inf x -> fprintf chan "[%a, +\\infty]" F.print x
