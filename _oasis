@@ -33,3 +33,10 @@ Executable "simplex"
   CompiledObject: best
   BuildDepends: zarith, num, oasis
   BuildTools+: ocamllex, menhir
+
+Executable "bytecode"
+  Path: src
+  MainIs: main.ml
+  CompiledObject: byte
+  BuildDepends: zarith, num, oasis
+  BuildTools+: ocamllex, menhir
