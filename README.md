@@ -19,6 +19,7 @@ https://github.com/nagaaym/Simplex
 ===============
 
 The solver depends on ocaml >= 4.02.1, findlib, oasis, menhir and zarith.
+It should be noted that zarith depends on libgmp.
 
 The easiest way to install them is to use [opam](https://opam.ocaml.org/) and do
 ```
@@ -51,30 +52,10 @@ This file contains:
   - the dual
   - the solution
 
-4. Other options
-================
+4. Features
+===========
 
-Display the help:
-```
-  --help
-```
-
-Use floating point numbers:
-```
-  -field float
-```
-
-Use gmp numbers (bit integers):
-```
-  -field gmp
-```
-
-Display some statistics:
-```
-  -d
-```
-
-Display some timers:
-```
-  -p
-```
+The solver can use a range of backends using ```-field [num|gmp|float]```:
+  - num : the standard OCaml arbitrary precision library
+  - gmp : the zarith bindings to gmp
+  - float : floating point numbers
