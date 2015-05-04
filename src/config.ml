@@ -35,7 +35,7 @@ let parse_args fields =
       let dir = Scanf.fscanf p ("%s\n") (fun x -> x) in
       ignore (Unix.close_process_in p);
       let out = open_out (dir^"/"^s^".tex") in
-      Printf.fprintf out "\\documentclass{article}\\begin{document}";
+      Printf.fprintf out "\\documentclass[10pt]{article}\\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}\\begin{document}";
       let finalize () =
         try
           Printf.fprintf out "\\end{document}\n%!";

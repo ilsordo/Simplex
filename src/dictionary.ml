@@ -54,7 +54,7 @@ module Make(F:FIELD) = struct
       let dic = { nonbasics = Array.init n_vars (fun x -> x)
                 ; basics = Array.init n_consts (fun n -> n + n_vars)
                 ; coeffs = make_row n_vars ()
-                ; rows = Array.init (List.length consts) (make_row n_vars)
+                ; rows = Array.init (n_consts) (make_row n_vars)
                 } in
       let apply_constr (lc, c) row =
         row.const <- c;
@@ -81,16 +81,21 @@ module Make(F:FIELD) = struct
     with Impossible (v, x1, x2) -> Invalid_constraint (v, x1, x2)
 
   let dual {nonbasics; basics; coeffs; rows} =
+    Printf.eprintf "%d %d%!" (Array.length basics) (Array.length rows);
+    assert(Array.length nonbasics = Array.length coeffs.body);
+    assert(Array.length basics = Array.length rows);
+
     let new_coeffs = Array.map (fun {const; _} -> F.neg const) rows in
-    let row_size = Array.length rows in
+    let num_rows = Array.length nonbasics in
+    let row_size = Array.length basics in
     let new_rows = Array.mapi
         (fun i const ->
            let body = Array.init row_size (fun j -> F.neg rows.(j).body.(i)) in
            {const = F.neg const; body})
         coeffs.body in
-    { nonbasics = Array.copy basics
-    ; basics = Array.copy nonbasics
-    ; coeffs = {coeffs with body = new_coeffs}
+    { nonbasics = Array.init row_size (fun i -> i)
+    ; basics = Array.init num_rows (fun i -> row_size + i)
+    ; coeffs = {body = new_coeffs; const = coeffs.const}
     ; rows = new_rows
     }
 
