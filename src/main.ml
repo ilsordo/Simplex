@@ -90,12 +90,12 @@ let main =
       let s = F_dic.solution conv sol in
       begin match config.action with
         | Explain (c, _) ->
-          Printf.fprintf c "\\section{Solution}Unbounded domain: $%a$\\\\%a"
+          Printf.fprintf c "\\section{Solution}Unbounded domain. Value: $%a$\\\\%a"
             F.print sol.coeffs.const
             F_dic.print_sol_tex s
         | Solve ->
-          Printf.printf "Unbounded domain: %d\n%a\n"
-            n
+          Printf.printf "Unbounded domain. Value: %a\n%a\n"
+            F.print sol.coeffs.const
             F_dic.print_sol s
       end;
       exit 0
