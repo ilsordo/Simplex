@@ -82,14 +82,15 @@ module Make(F:FIELD) = struct
 
   let dual {nonbasics; basics; coeffs; rows} =
     let new_coeffs = Array.map (fun {const; _} -> F.neg const) rows in
-    let row_size = Array.length rows in
+    let num_rows = Array.length nonbasics in
+    let row_size = Array.length basics in
     let new_rows = Array.mapi
         (fun i const ->
            let body = Array.init row_size (fun j -> F.neg rows.(j).body.(i)) in
            {const = F.neg const; body})
         coeffs.body in
-    { nonbasics = Array.copy basics
-    ; basics = Array.copy nonbasics
+    { nonbasics = Array.init row_size (fun i -> i)
+    ; basics = Array.init num_rows (fun i -> row_size + i)
     ; coeffs = {coeffs with body = new_coeffs}
     ; rows = new_rows
     }
